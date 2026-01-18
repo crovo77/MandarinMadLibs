@@ -1,0 +1,362 @@
+<html lang="zh-Hans">
+<script src='https://d3js.org/d3.v5.min.js'></script>
+<head>
+    <meta charset="UTF-8">
+    <title>Mandarin Mad Libs</title>
+    <style>
+        h1, h2, h3, h4, p {
+            text-align: center;
+        }
+        #master-container {
+            display: flex;
+            justify-content: center;
+        }
+        #side-container {
+            flex: 1;
+            max-width: 260;
+            display: flex;
+            flex-direction: column;
+        }
+        #desc-container {
+            background-color: lightyellow;
+            border-radius: 20px;
+            height: 518px;
+        }
+        #desc-container p {
+            text-align: left;
+            white-space: pre-wrap;
+            font-size: 17px;
+            margin: 18px;
+        }
+        #controls-container {
+            margin-top: auto;
+            text-align: center;
+            background-color: #D5FFD5;
+            border-radius: 20px;
+            height: 180px;
+        }
+        #navigation-container {
+            display: flex;
+            justify-content: center;
+        }
+        button {
+            width: 150px;
+            height: 50px;
+            margin: 10px;
+            font-size: x-large;
+            text-align: center;
+            border-radius: 20px;
+            border: none;
+            cursor: pointer;
+            background-color: lightskyblue;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #A9EEFC;
+        }
+
+    </style>
+</head>
+<header>
+    <h3>Age of Empires 2 Tips (Based on 1v1 Match Data)</h3>
+    <p>Data from 105,000 1v1 matches played between 3/1/21 - 3/13/21. Dataset found <a href="https://www.kaggle.com/datasets/slappdun/35000-age-of-empires-2-1v1-ranked-random-matches">Here</a>.</p>
+</header>
+<body onload='init()'>
+    <div id='master-container'>
+        <div id='graphic-container'>
+            <svg></svg>
+        </div>
+        <div id='side-container'>
+            <div id='desc-container'>
+                <h2></h2>
+                <p></p>
+            </div>
+            <div id='controls-container'><h2>Match Filters</h2></div>
+        </div>
+    </div>
+    <div id='navigation-container'>
+        <button id='prevBtn' style='visibility: hidden;'>Previous</button>
+        <button id='nextBtn'>Next</button>
+    </div>
+     
+    <script>
+        let currPage = 0;
+        const totalPages = 4;
+        async function setPage(pageNum) {
+            const data = await getData1v1();
+            resetSVG();
+            switch (pageNum) {
+            case 0:
+                sceneTitle('Practice Arabia');
+                sceneDesc('\tIf you want to become competitive in one of the oldest Real-Time-Strategy games, then which map should you practice?\n'
+                        + 'Arabia!!\nAlthough this dataset only contains data for a small subset of ranked map types due to the consistently cycling map-pool, '
+                        + 'Arabia is clearly a popular map for ranked players.\nAdditionally, the popularity of Arabia grows further among the highest rated players, '
+                        + 'implying they find practicing Arabia in particular gives them an edge.'
+                );
+                barGraph(colValCnts(data, ['map_type.name']), ['lightsalmon'], ['Map Name', 'Total Matches', 'Popular AoE2 Maps']);
+                break;
+            case 1:
+                sceneTitle('Counter Popular Civilizations');
+                sceneDesc('\tOne common tip for training is to focus on learning only a few civilizations at a time to master their playstyles.\n'
+                        + 'For instance, many competitors advise learning the Franks due to their clear strategic direction. Likely due to this '
+                        + 'suggestion, Franks are the most picked civilization accross nearly all beginner and intermediate ratings (and they boast a high win/loss ratio).\n'
+                        + 'With this observation, maybe one of the quicker ways to gain rating and thus experience is to pick civilizations that can counter the Franks.'
+                );
+                barGraph(colValCnts(data, ['civ.win.name', 'civ.lose.name']), ['lightgreen', '#FF9998'], ['Civilization Name', 'Total Matches', 'Popular AoE2 Civilizations\' Win/Lose Ratios']);
+                break;
+            case 2:
+                sceneTitle('Player Color Superstitions');
+                sceneDesc('\tPlayer color is not intended to be linked to game performance, but that does\'nt stop players from speculating.\n'
+                        + 'Some choose green so their units can blend in on grassy maps, others choose the lowest or highest possible color '
+                        + 'enumeration due to a myth that player color is used as a tie-break for equally matched units. More are suspicious '
+                        + 'that the 1v1 pairing system assigns the higher rated player to odd numbered color enumerations.\n'
+                        + 'After observing the data reported here, it seems there are more significant factors to track for becoming competitive.'
+                );
+                // 'By toggling the duration filter, we can also see that the Blue winrate drops after 2 hours'
+                barGraph(colValCnts(data, ['colorname_win', 'colorname_lose']), ['lightgreen', '#FF9998'], ['Player Color', 'Total Matches', 'AoE2 Player Colors\' Win/Lose Ratios']);
+                break;
+            case 3:
+                sceneTitle('Rating Climb');
+                sceneDesc('\tAlthough the tips here are designed to help gain rating, ultimately the point of playing Age of Empires 2 is to have fun.\n'
+                        + 'While observing the following rating loss/gain distribution, don\'t be discouraged that the gain in rating decreases as you get '
+                        + 'higher rated. The ELO ranking system is designed this way and is what enables the fun of tight competition in the first place.\n'
+                        + 'My final tip is for competitive players to focus on their journey and not just a target rating.'
+                );
+                barGraph(colValCnts(data, ['rating_change.win']), ['darkgrey'], ['Winner\'s Gain in Rating', 'Total Matches', 'Histogram of AoE2 Winners\' Rating Gain'], true);
+                break;
+            default:
+                break;
+            }
+        }
+
+        let data1v1;
+        async function init() {
+            const r = await d3.csv('AoE2_ranked_1v1_data.csv', function(d) {
+                d.avg_rating = Math.round((+d['rating.lose'] + +d['rating.win']) / 2);
+                d.duration_min = +((+d.duration[d.duration.length - 2]) >= 3) + +d.duration.slice(-5, -3) + (60 * +d.duration.slice(0, -6));
+                d.duration_min += (d.duration_min == 0); // have to alter this data a little in order to have valid domain for logarithmic scale.
+                // 0 min matches are in practice the same as 1 min matches at least
+                d.colorname_win = [null, '1. Blue', '2. Red', '3. Green', '4. Yellow', '5. Cyan', '6. Purple', '7. Grey', '8. Orange'][+d['color.win']];
+                d.colorname_lose = [null, '1. Blue', '2. Red', '3. Green', '4. Yellow', '5. Cyan', '6. Purple', '7. Grey', '8. Orange'][+d['color.lose']];
+                d['rating_change.win'] = +d['rating_change.win'];
+                return d;
+            });
+            data1v1 = r;
+            const prevBtn = document.getElementById('prevBtn');
+            prevBtn.addEventListener('click', async function prevPage() {
+                currPage = Math.max(currPage - 1, 0);
+                if (currPage <= 0) { prevBtn.style.visibility = 'hidden'; }
+                if (currPage < (totalPages - 1)) { nextBtn.style.visibility = 'visible'; }
+                await setPage(currPage);
+            });
+            const nextBtn = document.getElementById('nextBtn');
+            nextBtn.addEventListener('click', async function nextPage() {
+                currPage = Math.min(currPage + 1, totalPages - 1);
+                if (currPage >= (totalPages - 1)) { nextBtn.style.visibility = 'hidden'; }
+                if (currPage > 0) { prevBtn.style.visibility = 'visible'; }
+                await setPage(currPage);
+            });
+
+            await addDoubleSlider('Mean Rating: ', 'avg_rating', 'linear');
+            await addDoubleSlider('Duration (min):', 'duration_min', 'log');
+            setPage(currPage);
+        }
+        function getData1v1() {
+            return new Promise((resolve) => {
+                const checkDataPresent = () => {
+                    if (typeof data1v1 !== 'undefined' && data1v1 !== null) {
+                        resolve(data1v1);
+                    } else {
+                        setTimeout(checkDataPresent, 100);
+                    }
+                }
+                checkDataPresent();
+            });
+        }
+        
+        const margins = { top: 40, left: 80, bottom: 70, right: 30};
+        const width = (window.screen.width * 19 / 24) - 20;
+        const height = (window.screen.height * 3 / 5) - 20;
+
+        const disp = d3.select('#graphic-container').select('svg')
+                        .attr('width', width+margins.left+margins.right).attr('height', height+margins.top+margins.bottom);
+        const controls = d3.select('#controls-container');
+        const titleBox = d3.select('#desc-container').select('h2');
+        const txtBox = d3.select('#desc-container').select('p');
+        function sceneTitle(title) { titleBox.text(title); }
+        function sceneDesc(description) { txtBox.text(description); }
+
+        function resetSVG() { disp.selectAll('*').remove(); }
+
+        function createAnnotation() {
+
+        }
+
+        function newGroup(tx, ty) {
+            return disp.append('g').attr('transform', 'translate(' + tx + ',' + ty + ')');
+        }
+        function colValCnts(data, colNames) {
+            let cntMap = new Map();
+            const entries = colNames.map(key => [key, 0]);
+            data.forEach(row => {
+                for (let colName of colNames) {
+                    const val = row[colName];
+                    if (val == null) continue;
+                    cntMap.set(val, (cntMap.get(val) || Object.fromEntries(entries)));
+                    cntMap.get(val)[colName] += filterOut(row);
+                }
+            });
+            cntMap = sortMap(cntMap);
+            return Array.from(cntMap, ([key, values]) => ({ category : key, ...values }));
+        }
+        const filters = {};
+        function filterOut(row) {
+            for (const [key, value] of Object.entries(filters)) {
+                const val = cast(row[key], typeof(value[0]));
+                if (!((val >= value[0]) && (val <= value[1]))) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        function barGraph(data, colors, axisNames, trunc) {
+            let keys = Object.keys(data[0]);
+            const category = keys[0];
+            keys = keys.slice(1);
+            const stack = d3.stack().keys(keys);
+            const series = stack(data);
+            const xs = d3.scaleBand().domain(data.map(d => d[category])).range([margins.left, width+margins.left]).padding(0.05);
+            const ys = d3.scaleLinear().domain([0, d3.max(series[series.length - 1], d => d[1])]).range([height, 0]);
+            const gs = disp.selectAll('g').data(series).enter().append('g').attr('fill', (d, i) => colors[i]);
+            const bars = gs.selectAll('g').data(d => d).enter().append('g');
+            bars.append('rect')
+                .attr('x', d => xs(d.data[category]))
+                .attr('y', d => ys(d[1]))
+                .attr('width', xs.bandwidth())
+                .attr('height', d => ys(d[0]) - ys(d[1]));
+            bars.append('text')
+                .attr('x', d => xs(d.data[category]) + (xs.bandwidth() / 2))
+                .attr('y', (d, i) => 0.5 * (ys(d[1]) + ys(d[0])))
+                .text(d => (((d[1] - d[0] >= 1000) && trunc)? (Math.round((d[1] - d[0]) / 1000).toString() + 'K') : (d[1] - d[0])))
+                .attr('text-anchor', 'middle')
+                .style('font-size', '15px')
+                .style('font-weight', 'bold')
+                .attr('fill', 'black');
+            // axes
+            newGroup(0, height).call(d3.axisBottom(xs))
+                .selectAll('text')
+                    .style('font-size', '16px')
+                    .style('text-anchor', 'end').attr('dx', '-.4em').attr('dy', '.2em').attr('transform', 'rotate(-50)');
+            const yTicks = ys.ticks().filter(tick => Number.isInteger(tick));
+            newGroup(margins.left, 0).call(d3.axisLeft(ys).tickValues(yTicks).tickFormat(d3.format('d')))
+                .selectAll('text')
+                    .style('font-size', '12px');
+            
+            disp.append('text')
+                .attr('text-anchor', 'end')
+                .attr('x', 2 * margins.left + (width / 2))
+                .attr('y', height + margins.bottom + 30)
+                .attr('font-size', '20px')
+                .attr('font-weight', 'bold')
+                .text(axisNames[0]);
+
+            disp.append('text')
+                .attr('text-anchor', 'end')
+                .attr('transform', 'rotate(-90)')
+                .attr('y', margins.left - 60)
+                .attr('x', -margins.bottom - 155)
+                .attr('font-size', '20px')
+                .attr('font-weight', 'bold')
+                .text(axisNames[1]);
+
+            disp.append('text')
+                .attr('x', margins.left)
+                .attr('y', 23)
+                .attr('text-anchor', 'left')
+                .attr('font-size', '30px')
+                .attr('font-weight', 'bold')
+                .text(axisNames[2]);
+        }
+        
+        async function colRange(colName) {
+            const data = await getData1v1();
+            const range = [
+                d3.min(data, function(d) { return +d[colName]; }),
+                d3.max(data, function(d) { return +d[colName]; })
+            ]
+            return range;
+        }
+
+        async function addDoubleSlider(sldrName, colName, scaleType) {
+            const cntrl_width = 240;
+            const sldr_height = 50;
+            const padding = 20;
+            const sldr = controls.append('svg').attr('width', cntrl_width).attr('height', sldr_height);
+            sldr.append('text').attr('x', 0).attr('y', sldr_height / 2).style('alignment-baseline', 'middle').text(sldrName);
+            const range = await colRange(colName);
+            const currRange = [...range];
+            filters[colName] = currRange;
+            let xs;
+            switch (scaleType) {
+            case 'log': xs = d3.scaleLog(); break;
+            default: xs = d3.scaleLinear(); break;
+            }
+            xs = xs.domain(range).range([6 * sldrName.length + padding, cntrl_width - padding]);
+            sldr.append('line')
+                .attr('x1', xs.range()[0]).attr('y1', sldr_height / 2)
+                .attr('x2', xs.range()[1]).attr('y2', sldr_height / 2)
+                .attr('stroke', 'gray')
+                .attr('stroke-width', 5);
+            
+            const handle1 = sldr.append('g')
+                .attr('transform', 'translate(' + xs(range[0]) + ',' + (sldr_height / 2) + ')')
+                .call(d3.drag().on('drag', () => { brush(d3.event.x, 0); }));
+            handle1.append('circle').attr('r', 6).attr('fill', 'blue');
+            const lbl1 = handle1.append('text').attr('y', 5 * sldr_height / 12).attr('x', 0)
+                                .attr('text-anchor', 'middle').style('alignment-baseline', 'middle').text(range[0].toString());
+            const handle2 = sldr.append('g')
+                .attr('transform', 'translate(' + xs(range[1]) + ',' + (sldr_height / 2) + ')')
+                .call(d3.drag().on('drag', () => { brush(d3.event.x, 1); }));
+            handle2.append('circle').attr('r', 6).attr('fill', 'blue');
+            const lbl2 = handle2.append('text').attr('y', -4 * sldr_height / 12).attr('x', 0)
+                                .attr('text-anchor', 'middle').style('alignment-baseline', 'middle').text(range[1].toString());
+            function brush(x, ind) {
+                const newX = Math.max(xs.range()[0], Math.min(xs.range()[1], x));
+                currRange[ind] = Math.max(range[0], Math.min(range[1], Math.round(xs.invert(newX))));
+                if (currRange[0] > currRange[1]) {
+                    currRange[ind] = currRange[1 - ind];
+                }
+                [handle1, handle2][ind].attr('transform', 'translate(' + xs(currRange[ind]) + ',' + (sldr_height / 2) + ')');
+                [lbl1, lbl2][ind].text(currRange[ind]);
+                setPage(currPage);
+            }
+        }
+
+        function cast(val, type) {
+            switch (type) {
+            case 'boolean': return Boolean(val);
+            case 'number': return Number(val);
+            case 'bigint': return BigInt(val);
+            case 'string': return String(val);
+            case 'symbol': return Symbol(val);
+            case 'undefined': return undefined;
+            default: return val;
+            }
+        }
+        function sortMap(map) {
+            return new Map([...map.entries()].sort((a, b) => {
+                if ((typeof a[0]) === (typeof b[0])) {
+                    switch (typeof a[0]) {
+                    case 'string': return a[0].localeCompare(b[0]);
+                    case 'number':
+                        if (Number.isNaN(a[0]) || Number.isNaN(b[0])) return Number.isNaN(a[0]) - Number.isNaN(b[0]);
+                        return a[0] - b[0];
+                    default: return 0;
+                    }
+                }
+                return (typeof a[0]).localeCompare(typeof b[0]);
+            }));
+        }
+    </script>
+</body>
+</html>
