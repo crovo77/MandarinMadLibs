@@ -1,13 +1,12 @@
-<html lang="zh-Hans">
+<html lang='zh-Hans'>
 <script src='https://d3js.org/d3.v7.min.js'></script>
 <head>
-    <meta charset="UTF-8">
+    <meta charset='UTF-8'>
     <title>Mandarin Mad Libs</title>
     <style>
         body {
-            background-color: rgba(220, 250, 220);
+            background-color: rgb(240, 255, 240);
         }
-
         h1, h2, h3, h4, p {
             text-align: center;
             white-space: pre-wrap;
@@ -15,17 +14,21 @@
         #master-container {
             display: flex;
             justify-content: center;
-            background-color: rgba(255, 182, 193, 0.56);
-            border-radius: 20px;
         }
         #center-container {
             text-align: left;
             white-space: pre-wrap;
+            background-color: rgba(255, 182, 193, 0.56);
+            border-radius: 20px;
+        }
+        #center-container p {
+            font-size: 18px;
         }
         li {
             color: blue;
             transition: color 0.3s;
             cursor: pointer;
+            font-size: 24px;
         }
 
         li:hover {
@@ -47,9 +50,6 @@
             margin: 18px;
             overflow-y: scroll;
             overflow-x: hidden;
-        }
-        #error-msg {
-            color: red;
         }
         #navigation-container {
             display: flex;
@@ -79,15 +79,15 @@
 <body onload='init()'>
     <div id='master-container'>
         <div id='center-container'>
-            <h4></h4>
+            <h1></h1>
             <p></p>
         </div>
         <div id='side-container'>
-            <h2>Your Answers:</h2>
+            <h3>Your Answers:</h3>
             <p id='user-answers'></p>
         </div>
     </div>
-    <p id='error-msg'>Fill all blanks before submitting.</p>
+    <p id='error-msg' style='color: red;'>Please fill all blanks before submitting.</p>
     <div id='navigation-container'>
         <button id='prevBtn' style='visibility: hidden;'>Go Back</button>
         <button id='nextBtn' style='visibility: hidden;'>Submit</button>
@@ -106,7 +106,7 @@
                 const filenames = data.map(file => file.name.slice(0, -promptFormat.length));
                 return filenames;
             } catch (error) {
-                console.error("Failed to fetch file list:", error);
+                console.error('Failed to fetch file list:', error);
                 return [];
             }
         }
@@ -235,7 +235,7 @@
                         .attr('width', width+margins.left+margins.right).attr('height', height+margins.top+margins.bottom);
 
         function sceneTitle(title) {
-            disp.select('h4').text(title);
+            disp.select('h1').text(title);
         }
 
         function promptSelect(promptNames) {
