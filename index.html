@@ -152,11 +152,11 @@
             prevBtn.style.visibility = nextBtn.style.visibility = ((pageNum > 0)? 'visible' : 'hidden');
             resetCenter();
             side_cont.style.visibility = 'hidden'; // default is hidden
-            error_msg.style.visibility = 'hidden';
             let blanks = null;
             switch (pageNum) {
             case 0:
                 passage = null;
+                error_msg.style.visibility = 'hidden';
                 const promptNames = await fetchPromptNames();
                 sceneTitle('Please select a prompt:');
                 promptSelect(promptNames);
@@ -189,8 +189,10 @@
                 blanks = getBlanks(passage);
                 if (!allFilled(blanks)) {
                     error_msg.style.visibility = 'visible';
+                    setPage(1);
                     return;
                 }
+                error_msg.style.visibility = 'hidden';
                 sceneTitle(passageName);
                 nextBtn.textContent = 'New Prompt';
                 let user_ans_paragraph = '';
