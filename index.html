@@ -177,8 +177,11 @@
                     .enter()
                     .append('div')
                     .attr('class', 'blank-row')
-                    .style('margin', '10px 0')
-                    .style('text-align', 'right');
+                    .style('margin', '10px auto')
+                    .style('display', 'flex')
+                    .style('justify-content', 'space-between')
+                    .style('align-items', 'center')
+                    .style('max-width', '400px')
 
                 rows.append('label')
                     .text(d => d.type + ' : ')
