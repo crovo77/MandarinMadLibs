@@ -24,7 +24,7 @@
             border-radius: 20px;
         }
         #center-container p {
-            font-size: 18px;
+            font-size: 22px;
             margin: 35px;
         }
         li {
@@ -214,6 +214,7 @@
                 d3.select('#user-answers').text(user_ans_paragraph);
                 side_cont.style.display = 'flex';
                 disp.select('p').selectAll('span').data(passage).enter().append('span')
+                .style('white-space', 'pre-wrap')
                 .text(d => d.value)
                 .style('color', d => (d.type === 'readOnly')? 'black' : 'red');
                 break;
