@@ -219,7 +219,7 @@
                     pageNum = currPage;
                     alert('Please form some blanks in order to continue.');
                 }
-                createPromptPassage = [Excerpt('', 'Title')].concat(posPromptUnderlines);
+                createPromptPassage = [new Excerpt('', 'Title')].concat(posPromptUnderlines);
             }
             resetCenter();
             prevBtn.textContent = 'Previous';
@@ -330,7 +330,7 @@
         
         function createdPassageToExcerpts(container) {
             const children = Array.from(container.childNodes);
-            return children.map(node => ((node.nodeName === 'U')? Excerpt('', node.textContent) : Excerpt(node.textContent)));
+            return children.map(node => ((node.nodeName === 'U')? (new Excerpt('', node.textContent)) : (new Excerpt(node.textContent))));
         }
 
         const prevBtn = document.getElementById('prevBtn');
