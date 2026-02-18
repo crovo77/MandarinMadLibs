@@ -411,18 +411,14 @@
                 }
             }
             if (exArr[exArr.length - 1].type === 'readOnly') csv += ',';
-            console.log('csv is ', csv);
             return csv;
         }
 
         async function uploadPrompt(prompt) {
             if (!idToken) { alert('Please log in first'); return; }
             const bytes = new TextEncoder().encode(prompt);
-            console.log('bytes is ', bytes);
             const strFromCharCode = String.fromCharCode(...bytes);
-            console.log('strFromCharCode is ', strFromCharCode);
             const encodedCsv = btoa(strFromCharCode);
-            console.log('csv to send is ', encodedCsv);
 
             const response = await fetch('https://wild-cloud-34da.crovo77.workers.dev', {
                 method: 'POST',
@@ -431,7 +427,7 @@
                 },
                 body: JSON.stringify({
                     token: idToken,
-                    csv: encodedCsv
+                    encodedCsv: encodedCsv
                 })
             });
             const result = await response.text();
