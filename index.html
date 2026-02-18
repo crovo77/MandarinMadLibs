@@ -215,7 +215,7 @@
             createPromptInputSel = d3.select('#underlineInput');
             let posPromptUnderlines = (!createPromptInputSel.empty())? createdPassageToExcerpts(createPromptInputSel.node()) : null;
             if (posPromptUnderlines !== null) {
-                if (posPromptUnderlines.size() <= 1) {
+                if (posPromptUnderlines.length <= 1) {
                     pageNum = currPage;
                     alert('Please form some blanks in order to continue.');
                 }
