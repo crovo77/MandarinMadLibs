@@ -145,32 +145,24 @@
         }
 
         // detect spacebar presses for when creating a prompt on second page
-        document.addEventListener('keydown', function(event) {
+        function underlineWithSpace(event) {
             if (creatingPrompt && currPage === 1 && event.key === ' ' && createPromptText !== null) {
-                const textSel = getTextSel();
-                if (textSel === null) return;
-                underlines.append(textSel);
-                setPage(currPage);
+                const selection = window.getSelection();
+                if (!selection.rangeCount || selection.isCollapsed) return;
+                event.preventDefault(); // Stop space adding extra spaces
+                
+                const range = selection.getRangeAt(0);
+                const spn = document.createElement('u'); // Underline element
+                range.surroundContents(spn);
+                selection.removeAllRanges();
             }
-        });
-
-        function getTextSel() {
-            const sel = window.getSelection();
-            if (sel.rangeCount > 0 && !sel.isCollapsed) {
-                const length = sel.toString().length;
-                const start = sel.anchorOffset;
-                // const endOffset = sel.focusOffset;
-                return { start, length };
-            }
-            return null;
-        }
+        };
 
         let passage = null;
         let passageName = null;
         async function loadPrompt(promptName) {
             let psg = [];
             const rows = await d3.dsvFormat(',').parseRows(await d3.text('prompts/' + promptName + promptFormat));
-            rows.at(0)
             for (let i = 1; i < rows.length; i++) {
                 const row = rows.at(i);
                 // blanks will be at end of line and require a description. Empty end cells are treated as comma.
@@ -203,17 +195,35 @@
         const totalPages = 3;
         let creatingPrompt = false;
         let createPromptText = null;
-        let underlines = [];
+        let createPromptPassage = null;
         async function setPage(pageNum) {
-            if (creatingPrompt && pageNum > 0 && (passage === null || passageName === null)) pageNum = 0; // all other pages require passage populated
+            if (creatingPrompt && currPage === 2 && pageNum === 0) {
+                const csv_f = createCSVFromPassage(createPromptPassage);
+                uploadPrompt(csv_f);
+                creatingPrompt = false;
+                setPage(0);
+                return;
+            }
+            if (!creatingPrompt && pageNum > 0 && (passage === null || passageName === null)) pageNum = 0; // all other pages require passage populated
             prevBtn.style.visibility = nextBtn.style.visibility = ((pageNum > 0)? 'visible' : 'hidden');
             let createPromptInputSel = d3.select('#promptInput');
             let posPromptText = (!createPromptInputSel.empty())? createPromptInputSel.property('value') : null;
             if (posPromptText !== null) {
-                underlines.clear();
                 createPromptText = posPromptText;
+                createPromptPassage = null;
+            }
+            createPromptInputSel = d3.select('#underlineInput');
+            let posPromptUnderlines = (!createPromptInputSel.empty())? createdPassageToExcerpts(createPromptInputSel.node()) : null;
+            if (posPromptUnderlines !== null) {
+                if (posPromptUnderlines.size() <= 1) {
+                    pageNum = currPage;
+                    alert('Please form some blanks in order to continue.');
+                }
+                createPromptPassage = [Excerpt('', 'Title')].concat(posPromptUnderlines);
             }
             resetCenter();
+            prevBtn.textContent = 'Previous';
+            nextBtn.textContent = 'Next';
             side_cont.style.display = 'none'; // default is hidden
             let blanks = null;
             switch (pageNum + (creatingPrompt? 3 : 0)) {
@@ -238,7 +248,7 @@
                     .style('display', 'flex')
                     .style('justify-content', 'space-between')
                     .style('align-items', 'center')
-                    .style('max-width', '400px')
+                    .style('max-width', '400px');
 
                 rows.append('label')
                     .text(d => d.type + ' : ')
@@ -282,10 +292,35 @@
                 break;
             case 4:
                 sceneTitle('Select text, then press <Spacebar> to convert to a blank.');
-                disp.select('p').text(createPromptText).style('white-space', 'pre-wrap');
-                nextBtn.textContent = 'Next';
+                disp.select('p').attr('contenteditable', 'true').attr('id', 'underlineInput').text(createPromptText)
+                .on('keydown', underlineWithSpace);
+                prevBtn.textContent = 'Restart';
                 break;
             case 5:
+                sceneTitle('Finally, add a title and rename blanks to become prompts.');
+                nextBtn.textContent = 'Submit';
+                blanks = getBlanks(createPromptPassage);
+                const rws = disp.select('p')
+                    .selectAll('div.blank-row')
+                    .data(blanks)
+                    .enter()
+                    .append('div')
+                    .attr('class', 'blank-row')
+                    .style('margin', '10px auto')
+                    .style('display', 'flex')
+                    .style('justify-content', 'space-between')
+                    .style('align-items', 'center')
+                    .style('max-width', '400px');
+                rws.append('input')
+                    .attr('type', 'text')
+                    .property('value', d => d.type)
+                    .style('width', '200px')
+                    .on('input', function(event, d) {
+                        d.value = this.value;
+                    });
+                rws.append('label')
+                    .text(d => ' : ' + d.value)
+                    .style('margin-right', '10px');
                 break;
             default:
                 break;
@@ -293,6 +328,10 @@
             currPage = pageNum;
         }
         
+        function createdPassageToExcerpts(container) {
+            const children = Array.from(container.childNodes);
+            return children.map(node => ((node.nodeName === 'U')? Excerpt('', node.textContent) : Excerpt(node.textContent)));
+        }
 
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
@@ -311,6 +350,7 @@
                     return;
                 }
                 createPromptText = null;
+                createPromptPassage = null;
                 creatingPrompt = !creatingPrompt;
                 passage = null;
                 passageName = null;
@@ -351,6 +391,22 @@
         function handleLogin(response) {
             idToken = response.credential;
             console.log('Logged in');
+        }
+
+        function createCSVFromPassage(exArr) {
+            let csv = exArr[0].value; // start with title
+            for (let i = 1; i < exArr.length; i++) {
+                csv += (exArr[i - 1].type !== 'readOnly')? '\n' : ',';
+                if (exArr[i].type !== 'readOnly') {
+                    csv += exArr[i].value.replaceAll(',', ' ');
+                } else {
+                    let posRep = exArr[i].value.replaceAll(',', ',,');
+                    if (posRep[0] === ',') posRep = posRep.slice(1);
+                    csv += posRep;
+                }
+            }
+            if (exArr[exArr.length - 1].type === 'readOnly') csv += ',';
+            return csv;
         }
 
         async function uploadPrompt(prompt) {
