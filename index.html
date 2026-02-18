@@ -1,5 +1,14 @@
 <html lang='zh-Hans'>
 <script src='https://d3js.org/d3.v7.min.js'></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<div id='g_id_onload'
+     data-client_id='152946003675-gp8n3h0ike46cf14cmg7dprjm5kp0r0c.apps.googleusercontent.com'
+     data-callback='handleLogin'>
+</div>
+<div id='menuBar'>
+    <button id='createPromptButton'>Create Prompt</button>
+    <div class='g_id_signin'></div>
+</div>
 <head>
     <meta charset='UTF-8'>
     <title>Mandarin Mad Libs</title>
@@ -58,6 +67,20 @@
         #navigation-container {
             display: flex;
             justify-content: center;
+        }
+        #menuBar {
+            display: flex;
+            justify-content: right;
+        }
+        #createPromptButton {
+            border-radius: 5px;
+            width: 200px;
+            height: 40px;
+        }
+        .g_id_signin {
+            width: 200px;
+            height: 50px;
+            margin: 10px;
         }
         button {
             width: 150px;
@@ -121,12 +144,35 @@
             }
         }
 
+        // detect spacebar presses for when creating a prompt on second page
+        document.addEventListener('keydown', function(event) {
+            if (creatingPrompt && currPage === 1 && event.key === ' ' && createPromptText !== null) {
+                const textSel = getTextSel();
+                if (textSel === null) return;
+                underlines.append(textSel);
+                setPage(currPage);
+            }
+        });
+
+        function getTextSel() {
+            const sel = window.getSelection();
+            if (sel.rangeCount > 0 && !sel.isCollapsed) {
+                const length = sel.toString().length;
+                const start = sel.anchorOffset;
+                // const endOffset = sel.focusOffset;
+                return { start, length };
+            }
+            return null;
+        }
+
         let passage = null;
         let passageName = null;
         async function loadPrompt(promptName) {
             let psg = [];
             const rows = await d3.dsvFormat(',').parseRows(await d3.text('prompts/' + promptName + promptFormat));
-            for (const row of rows) {
+            rows.at(0)
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows.at(i);
                 // blanks will be at end of line and require a description. Empty end cells are treated as comma.
                 if (row.length !== 1 && (psg.length === 0 || psg.at(-1).type !== 'readOnly')) {
                     psg.push(new Excerpt());
@@ -155,13 +201,22 @@
 
         let currPage = 0;
         const totalPages = 3;
+        let creatingPrompt = false;
+        let createPromptText = null;
+        let underlines = [];
         async function setPage(pageNum) {
-            if (pageNum > 0 && (passage === null || passageName === null)) pageNum = 0; // all other pages require passage populated
+            if (creatingPrompt && pageNum > 0 && (passage === null || passageName === null)) pageNum = 0; // all other pages require passage populated
             prevBtn.style.visibility = nextBtn.style.visibility = ((pageNum > 0)? 'visible' : 'hidden');
+            let createPromptInputSel = d3.select('#promptInput');
+            let posPromptText = (!createPromptInputSel.empty())? createPromptInputSel.property('value') : null;
+            if (posPromptText !== null) {
+                underlines.clear();
+                createPromptText = posPromptText;
+            }
             resetCenter();
             side_cont.style.display = 'none'; // default is hidden
             let blanks = null;
-            switch (pageNum) {
+            switch (pageNum + (creatingPrompt? 3 : 0)) {
             case 0:
                 passage = null;
                 error_msg.style.visibility = 'hidden';
@@ -218,13 +273,30 @@
                 .text(d => d.value)
                 .style('color', d => (d.type === 'readOnly')? 'black' : 'red');
                 break;
+            case 3:
+                sceneTitle('Create a Prompt!\nFirst write a story:');
+                disp.select('p').append('input').attr('type', 'text').attr('id', 'promptInput')
+                .attr('placeholder', (createPromptText !== null)? createPromptText : 'Enter text here');
+                nextBtn.textContent = 'Next';
+                nextBtn.style.visibility = 'visible';
+                break;
+            case 4:
+                sceneTitle('Select text, then press <Spacebar> to convert to a blank.');
+                disp.select('p').text(createPromptText).style('white-space', 'pre-wrap');
+                nextBtn.textContent = 'Next';
+                break;
+            case 5:
+                break;
             default:
                 break;
             }
             currPage = pageNum;
         }
+        
+
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
+        const createPromptButton = document.getElementById('createPromptButton');
         async function init() {
             prevBtn.addEventListener('click', async function prevPage() {
                 await setPage(Math.max(currPage - 1, 0));
@@ -232,6 +304,17 @@
             const nextBtn = document.getElementById('nextBtn');
             nextBtn.addEventListener('click', async function nextPage() {
                 await setPage((currPage + 1) % totalPages);
+            });
+            createPromptButton.addEventListener('click', async function toggleMode() {
+                if (!creatingPrompt && idToken === null) {
+                    alert('Please Sign-in to Google first.');
+                    return;
+                }
+                createPromptText = null;
+                creatingPrompt = !creatingPrompt;
+                passage = null;
+                passageName = null;
+                await setPage(0);
             });
             setPage(currPage);
         }
@@ -263,6 +346,30 @@
         }
 
         function resetCenter() { disp.select('p').selectAll('*').remove(); }
+
+        let idToken = null;
+        function handleLogin(response) {
+            idToken = response.credential;
+            console.log('Logged in');
+        }
+
+        async function uploadPrompt(prompt) {
+            if (!idToken) { alert('Please log in first'); return; }
+            const bytes = new TextEncoder().encode(prompt);
+            const response = await fetch('https://wild-cloud-34da.crovo77.workers.dev', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    token: idToken,
+                    csv: btoa(String.fromCharCode(...bytes))
+                })
+            });
+            const result = await response.text();
+            alert(result);
+        }
+
     </script>
 </body>
 </html>
