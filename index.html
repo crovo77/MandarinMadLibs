@@ -97,6 +97,10 @@
         button:hover {
             background-color: #A9EEFC;
         }
+        text-area {
+            height: 400px;
+            width: 800px;
+        }
 
     </style>
 </head>
@@ -285,19 +289,14 @@
                 break;
             case 3:
                 sceneTitle('Create a Prompt!\nFirst write a story:');
-                disp.select('p').append('input').attr('type', 'text').attr('id', 'promptInput')
-                .attr('placeholder', (createPromptText !== null)? createPromptText : 'Enter text here')
-                    .style('margin', '10px auto')
-                    .style('display', 'flex')
-                    .style('justify-content', 'space-between')
-                    .style('align-items', 'center')
-                    .style('max-width', '400px');;
+                disp.select('p').append('textarea').attr('id', 'promptInput')
+                .attr('placeholder', (createPromptText !== null)? createPromptText : 'Enter text here');
                 nextBtn.textContent = 'Next';
                 nextBtn.style.visibility = 'visible';
                 break;
             case 4:
                 sceneTitle('Select text, then press <Spacebar> to convert to a blank.');
-                disp.select('p').attr('contenteditable', 'true').attr('id', 'underlineInput').text(createPromptText)
+                disp.select('p').attr('id', 'underlineInput').text(createPromptText)
                 .on('keydown', underlineWithSpace);
                 prevBtn.textContent = 'Restart';
                 break;
