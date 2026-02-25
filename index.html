@@ -372,9 +372,9 @@
         }
 
         function hideChildren(el) {
-            el.querySelectorAll('*').forEach(child => {
+            for (const child of el.children) {
                 child.style.display = 'none';
-            });
+            }
         }
 
         let idToken = null;
