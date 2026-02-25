@@ -186,9 +186,11 @@
             blanks = null;
         }
 
-        function setPageToDefault() {
+        function setPageToDefault(pageNum) {
             prevBtn.textContent = 'Previous';
             nextBtn.textContent = 'Next';
+            prevBtn.style.visibility = (pageNum > 0)? 'visible': 'hidden';
+            nextBtn.style.visibility = 'visible';
             disp.selectChildren().style('display', 'none');
             sceneTitle.style('display', 'block');
             sceneContent.style('display', 'block')
@@ -207,13 +209,14 @@
                 creatingPrompt = false;
                 pageNum = 0;
             }
-            setPageToDefault();
+            setPageToDefault(pageNum);
             switch (pageNum + (creatingPrompt? totalPages : 0)) {
             case 0:
                 sceneTitle.text('Please select a prompt:');
                 clearPassage();
                 const promptNames = await fetchPromptNames();
                 promptSelect(promptNames);
+                nextBtn.visibility = 'hidden';
                 break;
             case 1:
                 sceneTitle.text(passageName);
