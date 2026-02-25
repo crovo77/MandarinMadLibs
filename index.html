@@ -192,7 +192,8 @@
             disp.selectChildren().style('display', 'none');
             sceneTitle.style('display', 'block');
             sceneContent.style('display', 'block')
-                .attr('contenteditable', 'false').on('keydown', null);
+                .attr('contenteditable', 'false').on('keydown', null)
+                .selectAll('li').remove();
             side_cont.style('display', 'none'); // default is hidden
         }
 
@@ -344,7 +345,7 @@
                 const match = filenames[i].match(/^(.*)(_)(\d+)$/);
                 if (!match) continue;
                 // helps enumerate repeat titles
-                mapGet(titleMap, match[0], []).push({filenum: i, rank: +match[2]});
+                mapGet(titleMap, match[1], []).push({filenum: i, rank: +match[3]});
             }
             const promptInfo = [];
             titleMap.forEach((enums, title) => {
