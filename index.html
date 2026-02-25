@@ -3,14 +3,6 @@
     <meta charset='UTF-8'>
     <script src='https://d3js.org/d3.v7.min.js'></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <div id='g_id_onload'
-        data-client_id='152946003675-gp8n3h0ike46cf14cmg7dprjm5kp0r0c.apps.googleusercontent.com'
-        data-callback='handleLogin'>
-    </div>
-    <div id='menuBar'>
-        <button id='createPromptButton'>Create Prompt</button>
-        <div class='g_id_signin'></div>
-    </div>
     <title>Mandarin Mad Libs</title>
     <style>
         body {
@@ -108,6 +100,14 @@
     </style>
 </head>
 <body onload='init()'>
+    <div id='g_id_onload'
+        data-client_id='152946003675-gp8n3h0ike46cf14cmg7dprjm5kp0r0c.apps.googleusercontent.com'
+        data-callback='handleLogin'>
+    </div>
+    <div id='menuBar'>
+        <button id='createPromptButton'>Create Prompt</button>
+        <div class='g_id_signin'></div>
+    </div>
     <header>
         <h3>Mandarin Mad Libs</h3>
     </header>
@@ -189,7 +189,7 @@
         function setPageToDefault() {
             prevBtn.textContent = 'Previous';
             nextBtn.textContent = 'Next';
-            hideChildren(disp);
+            disp.selectChildren().style('display', 'none');
             sceneTitle.style('display', 'block');
             sceneContent.style('display', 'block')
                 .attr('contenteditable', 'false').on('keydown', null);
@@ -367,12 +367,6 @@
 
         function allFilled(blanks) {
             return blanks.every(b => b.value && b.value.trim().length);
-        }
-
-        function hideChildren(el) {
-            el.selectChildren().each(function(d, i) {
-                this.style('display', 'none');
-            });
         }
 
         let idToken = null;
