@@ -345,15 +345,15 @@
                 const match = filenames[i].match(/^(.*)(_)(\d+)$/);
                 if (!match) continue;
                 // helps enumerate repeat titles
-                mapGet(titleMap, match[0], []).append({filenum: i, rank: +match[2]});
+                mapGet(titleMap, match[0], []).push({filenum: i, rank: +match[2]});
             }
             const promptInfo = [];
             titleMap.forEach((enums, title) => {
-                if (enums.length === 1) promptInfo.append([title, enums[0].filenum]);
+                if (enums.length === 1) promptInfo.push([title, enums[0].filenum]);
                 else {
                     enums.sort((a, b) => a.rank - b.rank);
                     enums.forEach(enu => {
-                        promptInfo.append([title, enu.filenum, enu.rank]);
+                        promptInfo.push([title, enu.filenum, enu.rank]);
                     });
                 }
             });
