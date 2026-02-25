@@ -1,16 +1,16 @@
 <html lang='zh-Hans'>
-<script src='https://d3js.org/d3.v7.min.js'></script>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<div id='g_id_onload'
-     data-client_id='152946003675-gp8n3h0ike46cf14cmg7dprjm5kp0r0c.apps.googleusercontent.com'
-     data-callback='handleLogin'>
-</div>
-<div id='menuBar'>
-    <button id='createPromptButton'>Create Prompt</button>
-    <div class='g_id_signin'></div>
-</div>
 <head>
     <meta charset='UTF-8'>
+    <script src='https://d3js.org/d3.v7.min.js'></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <div id='g_id_onload'
+        data-client_id='152946003675-gp8n3h0ike46cf14cmg7dprjm5kp0r0c.apps.googleusercontent.com'
+        data-callback='handleLogin'>
+    </div>
+    <div id='menuBar'>
+        <button id='createPromptButton'>Create Prompt</button>
+        <div class='g_id_signin'></div>
+    </div>
     <title>Mandarin Mad Libs</title>
     <style>
         body {
@@ -107,10 +107,10 @@
 
     </style>
 </head>
-<header>
-    <h3>Mandarin Mad Libs</h3>
-</header>
 <body onload='init()'>
+    <header>
+        <h3>Mandarin Mad Libs</h3>
+    </header>
     <div id='master-container'>
         <div id='center-container'>
             <h1 id='sceneTitle'></h1>
