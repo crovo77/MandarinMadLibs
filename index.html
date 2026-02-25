@@ -97,7 +97,7 @@
         button:hover {
             background-color: #A9EEFC;
         }
-        #promptInput {
+        #storyInputArea {
             height: 400px;
             width: 800px;
             min-width: 400px;
@@ -191,8 +191,8 @@
             nextBtn.textContent = 'Next';
             hideChildren(disp);
             sceneTitle.style('display', 'block');
-            sceneContent.style('display', 'block');
-            sceneContent.attr('contenteditable', 'false').on('keydown', null);
+            sceneContent.style('display', 'block')
+                .attr('contenteditable', 'false').on('keydown', null);
             side_cont.style('display', 'none'); // default is hidden
         }
 
