@@ -190,11 +190,10 @@
             prevBtn.textContent = 'Previous';
             nextBtn.textContent = 'Next';
             hideChildren(disp);
-            sceneTitle.style.display = sceneContent.style.display = 'block';
+            sceneTitle.style('display', 'block');
+            sceneContent.style('display', 'block');
             sceneContent.attr('contenteditable', 'false').on('keydown', null);
-            sceneContent.style.display = 'none';
-            side_cont.style.display = 'none'; // default is hidden
-            storyInputArea.style.display = 'none';
+            side_cont.style('display', 'none'); // default is hidden
         }
 
         let currPage = 0;
@@ -254,7 +253,7 @@
                     user_ans_paragraph += blank.type + ' : ' + blank.value + '\n\n';
                 }
                 user_ans.text(user_ans_paragraph);
-                side_cont.style.display = 'flex';
+                side_cont.style('display', 'flex');
                 sceneContent.selectAll('span').data(passage).enter().append('span')
                 .style('white-space', 'pre-wrap')
                 .text(d => d.value)
@@ -264,8 +263,8 @@
             // these pages are when we are creating a prompt
             case 3:
                 sceneTitle.text('Create a Prompt!\nFirst write a story:');
-                sceneContent.style.display = 'none';
-                storyInputArea.style.display = 'inline-block';
+                sceneContent.style('display', 'none');
+                storyInputArea.style('display', 'inline-block');
                 break;
             case 4:
                 sceneTitle.text('Select text, then press <Spacebar> to convert to a blank.');
@@ -364,7 +363,6 @@
                     await loadPrompt(filenames[info[1]]);
                     setPage(1);
                 });
-            sceneContent.style.display = 'block';
         }
 
         function allFilled(blanks) {
@@ -373,7 +371,7 @@
 
         function hideChildren(el) {
             el.selectChildren().each(function(d, i) {
-                this.style.display = 'none';
+                this.style('display', 'none');
             });
         }
 
