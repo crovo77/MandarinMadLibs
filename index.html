@@ -177,30 +177,38 @@
             if (!selection.rangeCount || selection.isCollapsed) return;
             const range = selection.getRangeAt(0);
 
-            const parentU = findParentUnderline(range.startContainer);
-            if (parentU) {
-                const parent = parentU.parentNode;
-                while (parentU.firstChild) parent.insertBefore(parentU.firstChild, parentU);
-                parent.removeChild(parentU);
-            } else try { // try to add underline if no underline part of selection
-                const underline = document.createElement('u');
-                range.surroundContents(underline);
-            } catch (err) { // if underline is part of selection
-                const extracted = range.extractContents();
-                const underline = document.createElement('u');
-                underline.appendChild(extracted);
-                range.insertNode(underline);
-            }
-            selection.removeAllRanges();
-            sceneContent.node().normalize();
-        };
+            // If selection is entirely inside a blank remove it
+            const blankAncestor = findBlankAncestor(range.commonAncestorContainer);
 
-        function findParentUnderline(node) {
+            if (blankAncestor) unwrapBlank(blankAncestor);
+            else wrapSelectionAsBlank(range);
+
+            sceneContent.node().normalize();
+            selection.removeAllRanges();
+        };
+        function findBlankAncestor(node) {
             while (node && node.id !== 'sceneContent') {
-                if (node.nodeName === 'U') return node;
+                if (node.nodeType === 1 && node.classList.contains('blank')) {
+                    return node;
+                }
                 node = node.parentNode;
             }
             return null;
+        }
+        function wrapSelectionAsBlank(range) {
+            const extracted = range.extractContents();
+            const span = document.createElement('span');
+            span.classList.add('blank');
+            span.dataset.blank = extracted.textContent;
+            span.appendChild(extracted);
+            range.insertNode(span);
+        }
+        function unwrapBlank(blankNode) {
+            const parent = blankNode.parentNode;
+            while (blankNode.firstChild) {
+                parent.insertBefore(blankNode.firstChild, blankNode);
+            }
+            parent.removeChild(blankNode);
         }
 
         let passage = null;
@@ -338,11 +346,23 @@
         }
         
         function createdPassageToExcerpts(container) {
-            const children = Array.from(container.childNodes);
-            return children.map(node => (
-                (node.nodeName === 'U')? (new Excerpt('', node.textContent))
-                                        : (new Excerpt(node.textContent)))
-            );
+            const excerpts = [];
+            container.childNodes.forEach(node => {
+                // not underlined
+                if (node.nodeType === Node.TEXT_NODE) {
+                    if (node.textContent.length > 0) {
+                        excerpts.push(new Excerpt(node.textContent));
+                    }
+                }
+                // underlined
+                else if (
+                    node.nodeType === Node.ELEMENT_NODE &&
+                    node.classList.contains('blank')
+                ) {
+                    excerpts.push(new Excerpt('', node.textContent));
+                }
+            });
+            return excerpts;
         }
 
         const prevBtn = document.getElementById('prevBtn');
