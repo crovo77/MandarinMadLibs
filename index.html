@@ -547,9 +547,9 @@
                 const obj = {
                     ...t,
                     start: cursor,
-                    end: cursor + tokenTxt.length
+                    end: cursor + t.text.length
                 };
-                cursor += tokenTxt.length;
+                cursor += t.text.length;
                 return obj;
             });
             // Step 3: find all overlapping tokens
