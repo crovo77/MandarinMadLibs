@@ -123,8 +123,8 @@
     <div id='master-container'>
         <div id='center-container'>
             <h1 id='sceneTitle'></h1>
-            <p id='sceneContent'></p>
             <p id='underlineContent'></p>
+            <p id='sceneContent'></p>
             <textarea id='storyInputArea'></textarea>
         </div>
         <div style='min-width: 20px'></div>
@@ -146,9 +146,7 @@
                         .attr('width', width+margins.left+margins.right).attr('height', height+margins.top+margins.bottom);
         const sceneTitle = d3.select('#sceneTitle');
         const sceneContent = d3.select('#sceneContent');
-        const underlineContent = d3.select('#underlineContent')
-            .attr('contenteditable', 'true')
-            .on('keydown', underlineWithSpace);
+        const underlineContent = d3.select('#underlineContent').on('keydown', underlineWithSpace);
         const storyInputArea = d3.select('#storyInputArea');
         const side_cont = d3.select('#side-container');
         const user_ans = d3.select('#user-answers');
@@ -186,7 +184,7 @@
             const range = selection.getRangeAt(0);
 
             // If selection is entirely inside a blank remove it
-            const blankAncestor = findBlankAncestor(range.commonAncestorContainer);
+            const blankAncestor = findBlankAncestor(selection.anchorNode);
 
             if (blankAncestor) unwrapBlank(blankAncestor);
             else wrapSelectionAsBlank(range);
@@ -315,18 +313,20 @@
             case 4:
                 sceneTitle.text('Select text, then press <Spacebar> to convert to a blank.');
                 sceneContent.style('display', 'none');
-                underlineContent.style('display', 'block');
+                underlineContent.style('display', 'block').attr('contenteditable', 'true');
                 let storyInput = storyInputArea.property('value');
                 if (storyInput !== underlineContent.text()) underlineContent.text(storyInput);
                 break;
             case 5:
+                sceneTitle.text('Finally, add a title and rename blanks to become prompts.');
+                underlineContent.style('display', 'block').attr('contenteditable', 'false');
                 let excerpts = createdPassageToExcerpts(underlineContent.node());
                 if (excerpts.length <= 1) { // a single excerpt indicates no blanks
                     alert('Please form some blanks in order to continue.');
                     setPage(1); return; // goes to previous page (4)
                 }
                 passage = [new Excerpt('', 'Title')].concat(excerpts);
-                sceneTitle.text('Finally, add a title and rename blanks to become prompts.');
+                
                 nextBtn.textContent = 'Submit';
                 blanks = getBlanks(passage);
                 const rws = sceneContent.selectAll('div.blank-row')
