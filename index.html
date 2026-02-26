@@ -23,6 +23,11 @@
             min-width: 60%;
             min-height: 518px;
             border-radius: 20px;
+            justify-content: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 50px;
         }
         #center-container p {
             font-size: 22px;
@@ -189,8 +194,8 @@
         function setPageToDefault(pageNum) {
             prevBtn.textContent = 'Previous';
             nextBtn.textContent = 'Next';
-            prevBtn.style.visibility = (pageNum > 0)? 'visible': 'hidden';
-            nextBtn.style.visibility = 'visible';
+            prevBtn.style.display = (pageNum > 0)? 'block': 'none';
+            nextBtn.style.display = 'block';
             disp.selectChildren().style('display', 'none');
             sceneTitle.style('display', 'block');
             sceneContent.style('display', 'block')
@@ -216,7 +221,7 @@
                 clearPassage();
                 const promptNames = await fetchPromptNames();
                 promptSelect(promptNames);
-                nextBtn.visibility = 'hidden';
+                nextBtn.style.display = 'none';
                 break;
             case 1:
                 sceneTitle.text(passageName);
