@@ -277,7 +277,16 @@
             case 4:
                 sceneTitle.text('Select text, then press <Spacebar> to convert to a blank.');
                 sceneContent.style('display', 'none');
-                underlineContent.style('display', 'block').attr('contenteditable', 'true');
+                underlineContent.style('display', 'block').attr('contenteditable', 'true')
+                    .on('beforeinput', function(event) {
+                        // Allow only selection (no actual text mutation)
+                        if (event.inputType.startsWith('insert') ||
+                            event.inputType.startsWith('delete') ||
+                            event.inputType === 'insertFromPaste' ||
+                            event.inputType === 'insertCompositionText') {
+                            event.preventDefault();
+                        }
+                    });
                 let storyInput = storyInputArea.property('value');
                 if (storyInput !== underlineContent.text()) underlineContent.text(storyInput);
                 break;
