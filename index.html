@@ -471,111 +471,278 @@
             return mp.get(key);
         }
 
-        // detect spacebar presses for when creating a prompt on second page
         function underlineWithSpace(event) {
             event.preventDefault();
             if (event.key !== ' ' || sceneContent.text() === null) return;
-            const selection = window.getSelection();
-            if (!selection.rangeCount || selection.isCollapsed) return;
-            const range = selection.getRangeAt(0);
 
-            // Expand selection to fully include any touched blank spans
-            expandRangeToIncludeWholeBlanks(range);
+            const offsets = getSelectionOffsets();
+            if (!offsets) return;
 
-            // If selection exactly equals one blank → toggle off
-            const singleBlank = isExactlyOneBlank(range);
-            if (singleBlank) {
-                unwrapBlank(singleBlank);
-                sceneContent.node().normalize();
-                selection.removeAllRanges();
-                return;
+            let { start, end } = offsets;
+
+            // Step 1 — trim whitespace
+            const fullText = sceneContent.node().textContent;
+
+            while (start < end && /\s/.test(fullText[start])) start++;
+            while (end > start && /\s/.test(fullText[end - 1])) end--;
+
+            if (start >= end) return;
+
+            let tokens = getTokens();
+
+            // Convert tokens to absolute character ranges
+            let cursor = 0;
+            tokens = tokens.map(t => {
+                const obj = {
+                    ...t,
+                    start: cursor,
+                    end: cursor + t.text.length
+                };
+                cursor += t.text.length;
+                return obj;
+            });
+
+            // Step 3 — find all tokens partially selected
+            const selectedTokens = tokens.filter(t =>
+                !(t.end <= start || t.start >= end)
+            );
+
+            const containsUnderline = selectedTokens.some(t => t.underlined);
+
+            if (containsUnderline) {
+                // Step 4 — conjoin
+
+                let first = selectedTokens[0];
+                let hostIndex = tokens.indexOf(first);
+
+                if (first.underlined && hostIndex > 0) {
+                    hostIndex -= 1;
+                }
+
+                const host = tokens[hostIndex];
+
+                // Combine text
+                let combinedText = '';
+                selectedTokens.forEach(t => combinedText += t.text);
+
+                host.text += combinedText;
+                host.underlined = false;
+
+                // Remove selected tokens except host
+                tokens = tokens.filter(t =>
+                    !selectedTokens.includes(t) || t === host
+                );
+
+            } else {
+                // Step 5 — splitting
+
+                const newTokens = [];
+
+                tokens.forEach(t => {
+
+                    if (t.end <= start || t.start >= end) {
+                        newTokens.push(t);
+                        return;
+                    }
+
+                    const beforeLen = Math.max(0, start - t.start);
+                    const afterLen = Math.max(0, t.end - end);
+
+                    if (beforeLen > 0) {
+                        newTokens.push({
+                            text: t.text.slice(0, beforeLen),
+                            underlined: false
+                        });
+                    }
+
+                    const selectionText = t.text.slice(
+                        Math.max(0, start - t.start),
+                        t.text.length - afterLen
+                    );
+
+                    newTokens.push({
+                        text: selectionText,
+                        underlined: true
+                    });
+
+                    if (afterLen > 0) {
+                        newTokens.push({
+                            text: t.text.slice(t.text.length - afterLen),
+                            underlined: false
+                        });
+                    }
+                });
+
+                tokens = newTokens;
             }
-            // Remove ALL blanks inside range completely
-            removeAllBlanksInRange(range);
-            // Wrap cleaned text as one new blank
-            wrapSelectionAsBlank(range);
+
+            renderTokens(tokens);
+            window.getSelection().removeAllRanges();
+        }
+
+        function getSelectionOffsets() {
+            const sel = window.getSelection();
+            if (!sel.rangeCount || sel.isCollapsed) return null;
+
+            const range = sel.getRangeAt(0);
+            const preRange = range.cloneRange();
+            preRange.selectNodeContents(sceneContent.node());
+            preRange.setEnd(range.startContainer, range.startOffset);
+
+            const start = preRange.toString().length;
+            const end = start + range.toString().length;
+
+            return { start, end };
+        }
+
+        function getTokens() {
+            const tokens = [];
+
+            sceneContent.node().childNodes.forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    tokens.push({
+                        text: node.textContent,
+                        underlined: false
+                    });
+                }
+                else if (node.classList?.contains('blank')) {
+                    tokens.push({
+                        text: node.textContent,
+                        underlined: true
+                    });
+                }
+            });
+
+            return tokens;
+        }
+
+        function renderTokens(tokens) {
+            sceneContent.html('');
+
+            tokens.forEach(token => {
+                if (!token.text.length) return;
+
+                if (token.underlined) {
+                    const span = document.createElement('span');
+                    span.classList.add('blank');
+                    span.style.backgroundColor = generateSoftColor();
+                    span.textContent = token.text;
+                    sceneContent.node().appendChild(span);
+                } else {
+                    sceneContent.node().appendChild(
+                        document.createTextNode(token.text)
+                    );
+                }
+            });
+
             sceneContent.node().normalize();
-            selection.removeAllRanges();
         }
-        function findSingleEnclosingBlank(selection) {
-            const startBlank = findBlankAncestor(selection.anchorNode);
-            const endBlank   = findBlankAncestor(selection.focusNode);
 
-            if (startBlank && startBlank === endBlank) {
-                return startBlank;
-            }
-            return null;
-        }
-        function expandRangeToIncludeWholeBlanks(range) {
-            const blanks = sceneContent.node().querySelectorAll('.blank');
-            blanks.forEach(blank => {
-                const blankRange = document.createRange();
-                blankRange.selectNode(blank);
-                // If range intersects blank at all
-                if (
-                    range.compareBoundaryPoints(Range.END_TO_START, blankRange) < 0 &&
-                    range.compareBoundaryPoints(Range.START_TO_END, blankRange) > 0
-                ) {
-                    // Expand selection outward
-                    if (range.compareBoundaryPoints(Range.START_TO_START, blankRange) > 0) {
-                        range.setStartBefore(blank);
-                    }
-                    if (range.compareBoundaryPoints(Range.END_TO_END, blankRange) < 0) {
-                        range.setEndAfter(blank);
-                    }
-                }
-            });
-        }
-        function removeAllBlanksInRange(range) {
-            const blanks = sceneContent.node().querySelectorAll('.blank');
-            blanks.forEach(blank => {
-                const blankRange = document.createRange();
-                blankRange.selectNode(blank);
-                if (
-                    range.compareBoundaryPoints(Range.END_TO_START, blankRange) < 0 &&
-                    range.compareBoundaryPoints(Range.START_TO_END, blankRange) > 0
-                ) {
-                    unwrapBlank(blank);
-                }
-            });
-        }
-        function isExactlyOneBlank(range) {
-            const startBlank = findBlankAncestor(range.startContainer);
-            const endBlank = findBlankAncestor(range.endContainer);
-            if (startBlank && startBlank === endBlank) {
-                const blankRange = document.createRange();
-                blankRange.selectNode(startBlank);
-                return (
-                    range.compareBoundaryPoints(Range.START_TO_START, blankRange) === 0 &&
-                    range.compareBoundaryPoints(Range.END_TO_END, blankRange) === 0
-                ) ? startBlank : null;
-            }
-            return null;
-        }
-        function findBlankAncestor(node) {
-            while (node && node.id !== 'sceneContent') {
-                if (node.nodeType === 1 && node.classList.contains('blank')) {
-                    return node;
-                }
-                node = node.parentNode;
-            }
-            return null;
-        }
-        function wrapSelectionAsBlank(range) {
-            const extracted = range.extractContents();
-            const span = document.createElement('span');
-            span.classList.add('blank');
-            // span.dataset.blank = extracted.textContent;
-            span.appendChild(extracted);
-            range.insertNode(span);
-        }
-        function unwrapBlank(blankNode) {
-            const parent = blankNode.parentNode;
-            while (blankNode.firstChild) {
-                parent.insertBefore(blankNode.firstChild, blankNode);
-            }
-            parent.removeChild(blankNode);
-        }
+        // detect spacebar presses for when creating a prompt on second page
+        // function underlineWithSpace(event) {
+        //     event.preventDefault();
+        //     if (event.key !== ' ' || sceneContent.text() === null) return;
+        //     const selection = window.getSelection();
+        //     if (!selection.rangeCount || selection.isCollapsed) return;
+        //     const range = selection.getRangeAt(0);
+
+        //     // Expand selection to fully include any touched blank spans
+        //     expandRangeToIncludeWholeBlanks(range);
+
+        //     // If selection exactly equals one blank → toggle off
+        //     const singleBlank = isExactlyOneBlank(range);
+        //     if (singleBlank) {
+        //         unwrapBlank(singleBlank);
+        //         sceneContent.node().normalize();
+        //         selection.removeAllRanges();
+        //         return;
+        //     }
+        //     // Remove ALL blanks inside range completely
+        //     removeAllBlanksInRange(range);
+        //     // Wrap cleaned text as one new blank
+        //     wrapSelectionAsBlank(range);
+        //     sceneContent.node().normalize();
+        //     selection.removeAllRanges();
+        // }
+        // function findSingleEnclosingBlank(selection) {
+        //     const startBlank = findBlankAncestor(selection.anchorNode);
+        //     const endBlank   = findBlankAncestor(selection.focusNode);
+
+        //     if (startBlank && startBlank === endBlank) {
+        //         return startBlank;
+        //     }
+        //     return null;
+        // }
+        // function expandRangeToIncludeWholeBlanks(range) {
+        //     const blanks = sceneContent.node().querySelectorAll('.blank');
+        //     blanks.forEach(blank => {
+        //         const blankRange = document.createRange();
+        //         blankRange.selectNode(blank);
+        //         // If range intersects blank at all
+        //         if (
+        //             range.compareBoundaryPoints(Range.END_TO_START, blankRange) < 0 &&
+        //             range.compareBoundaryPoints(Range.START_TO_END, blankRange) > 0
+        //         ) {
+        //             // Expand selection outward
+        //             if (range.compareBoundaryPoints(Range.START_TO_START, blankRange) > 0) {
+        //                 range.setStartBefore(blank);
+        //             }
+        //             if (range.compareBoundaryPoints(Range.END_TO_END, blankRange) < 0) {
+        //                 range.setEndAfter(blank);
+        //             }
+        //         }
+        //     });
+        // }
+        // function removeAllBlanksInRange(range) {
+        //     const blanks = sceneContent.node().querySelectorAll('.blank');
+        //     blanks.forEach(blank => {
+        //         const blankRange = document.createRange();
+        //         blankRange.selectNode(blank);
+        //         if (
+        //             range.compareBoundaryPoints(Range.END_TO_START, blankRange) < 0 &&
+        //             range.compareBoundaryPoints(Range.START_TO_END, blankRange) > 0
+        //         ) {
+        //             unwrapBlank(blank);
+        //         }
+        //     });
+        // }
+        // function isExactlyOneBlank(range) {
+        //     const startBlank = findBlankAncestor(range.startContainer);
+        //     const endBlank = findBlankAncestor(range.endContainer);
+        //     if (startBlank && startBlank === endBlank) {
+        //         const blankRange = document.createRange();
+        //         blankRange.selectNode(startBlank);
+        //         return (
+        //             range.compareBoundaryPoints(Range.START_TO_START, blankRange) === 0 &&
+        //             range.compareBoundaryPoints(Range.END_TO_END, blankRange) === 0
+        //         ) ? startBlank : null;
+        //     }
+        //     return null;
+        // }
+        // function findBlankAncestor(node) {
+        //     while (node && node.id !== 'sceneContent') {
+        //         if (node.nodeType === 1 && node.classList.contains('blank')) {
+        //             return node;
+        //         }
+        //         node = node.parentNode;
+        //     }
+        //     return null;
+        // }
+        // function wrapSelectionAsBlank(range) {
+        //     const extracted = range.extractContents();
+        //     const span = document.createElement('span');
+        //     span.classList.add('blank');
+        //     // span.dataset.blank = extracted.textContent;
+        //     span.appendChild(extracted);
+        //     range.insertNode(span);
+        // }
+        // function unwrapBlank(blankNode) {
+        //     const parent = blankNode.parentNode;
+        //     while (blankNode.firstChild) {
+        //         parent.insertBefore(blankNode.firstChild, blankNode);
+        //     }
+        //     parent.removeChild(blankNode);
+        // }
     </script>
 </body>
 </html>
