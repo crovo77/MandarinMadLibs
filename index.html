@@ -277,7 +277,8 @@
                 break;
             case 4:
                 sceneTitle.text('Select text, then press <Spacebar> to convert to a blank.');
-                if (storyInputArea.value !== sceneContent.text()) sceneContent.text(storyInputArea.value);
+                let storyInput = storyInputArea.property('value');
+                if (storyInput !== sceneContent.text()) sceneContent.text(storyInput);
                 sceneContent.attr('contenteditable', 'true').on('keydown', underlineWithSpace);
                 break;
             case 5:
@@ -310,8 +311,6 @@
                 rws.append('label')
                     .text(d => ' : ' + d.type)
                     .style('margin-right', '10px');
-                break;
-            default:
                 break;
             }
             currPage = pageNum;
