@@ -473,7 +473,7 @@
 
         function underlineWithSpace(event) {
             event.preventDefault();
-            if (event.key !== ' ' || sceneContent.text() === null) return;
+            if (event.key !== ' ' || underlineContent.text() === null) return;
 
             const offsets = getSelectionOffsets();
             if (!offsets) return;
@@ -481,7 +481,7 @@
             let { start, end } = offsets;
 
             // Step 1 — trim whitespace
-            const fullText = sceneContent.node().textContent;
+            const fullText = underlineContent.node().textContent;
 
             while (start < end && /\s/.test(fullText[start])) start++;
             while (end > start && /\s/.test(fullText[end - 1])) end--;
@@ -586,7 +586,7 @@
 
             const range = sel.getRangeAt(0);
             const preRange = range.cloneRange();
-            preRange.selectNodeContents(sceneContent.node());
+            preRange.selectNodeContents(underlineContent.node());
             preRange.setEnd(range.startContainer, range.startOffset);
 
             const start = preRange.toString().length;
@@ -598,7 +598,7 @@
         function getTokens() {
             const tokens = [];
 
-            sceneContent.node().childNodes.forEach(node => {
+            underlineContent.node().childNodes.forEach(node => {
                 if (node.nodeType === Node.TEXT_NODE) {
                     tokens.push({
                         text: node.textContent,
@@ -617,7 +617,7 @@
         }
 
         function renderTokens(tokens) {
-            sceneContent.html('');
+            underlineContent.html('');
 
             tokens.forEach(token => {
                 if (!token.text.length) return;
@@ -627,15 +627,15 @@
                     span.classList.add('blank');
                     span.style.backgroundColor = generateSoftColor();
                     span.textContent = token.text;
-                    sceneContent.node().appendChild(span);
+                    underlineContent.node().appendChild(span);
                 } else {
-                    sceneContent.node().appendChild(
+                    underlineContent.node().appendChild(
                         document.createTextNode(token.text)
                     );
                 }
             });
 
-            sceneContent.node().normalize();
+            underlineContent.node().normalize();
         }
 
         // detect spacebar presses for when creating a prompt on second page
