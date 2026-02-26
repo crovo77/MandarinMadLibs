@@ -101,6 +101,10 @@
             max-width: 1120px;
             min-height: 300px;
         }
+        .blank {
+            text-decoration: underline;
+            background-color: rgba(255,0,0,0.1);
+        }
 
     </style>
 </head>
@@ -120,6 +124,7 @@
         <div id='center-container'>
             <h1 id='sceneTitle'></h1>
             <p id='sceneContent'></p>
+            <p id='underlineContent'></p>
             <textarea id='storyInputArea'></textarea>
         </div>
         <div style='min-width: 20px'></div>
@@ -141,6 +146,9 @@
                         .attr('width', width+margins.left+margins.right).attr('height', height+margins.top+margins.bottom);
         const sceneTitle = d3.select('#sceneTitle');
         const sceneContent = d3.select('#sceneContent');
+        const underlineContent = d3.select('#underlineContent')
+            .attr('contenteditable', 'true')
+            .on('keydown', underlineWithSpace);
         const storyInputArea = d3.select('#storyInputArea');
         const side_cont = d3.select('#side-container');
         const user_ans = d3.select('#user-answers');
@@ -306,12 +314,13 @@
                 break;
             case 4:
                 sceneTitle.text('Select text, then press <Spacebar> to convert to a blank.');
+                sceneContent.style('display', 'none');
+                underlineContent.style('display', 'block');
                 let storyInput = storyInputArea.property('value');
-                if (storyInput !== sceneContent.text()) sceneContent.text(storyInput);
-                sceneContent.attr('contenteditable', 'true').on('keydown', underlineWithSpace);
+                if (storyInput !== underlineContent.text()) underlineContent.text(storyInput);
                 break;
             case 5:
-                let excerpts = createdPassageToExcerpts(sceneContent.node());
+                let excerpts = createdPassageToExcerpts(underlineContent.node());
                 if (excerpts.length <= 1) { // a single excerpt indicates no blanks
                     alert('Please form some blanks in order to continue.');
                     setPage(1); return; // goes to previous page (4)
