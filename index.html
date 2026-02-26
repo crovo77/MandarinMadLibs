@@ -471,164 +471,55 @@
             return mp.get(key);
         }
 
-        function underlineWithSpace(event) {
-            event.preventDefault();
-            if (event.key !== ' ' || underlineContent.text() === null) return;
-
-            const offsets = getSelectionOffsets();
-            if (!offsets) return;
-
-            let { start, end } = offsets;
-
-            // Step 1 — trim whitespace
-            const fullText = underlineContent.node().textContent;
-
-            while (start < end && /\s/.test(fullText[start])) start++;
-            while (end > start && /\s/.test(fullText[end - 1])) end--;
-
-            if (start >= end) return;
-
-            let tokens = getTokens();
-
-            // Convert tokens to absolute character ranges
-            let cursor = 0;
-            tokens = tokens.map(t => {
-                const obj = {
-                    ...t,
-                    start: cursor,
-                    end: cursor + t.text.length
-                };
-                cursor += t.text.length;
-                return obj;
-            });
-
-            // Step 3 — find all tokens partially selected
-            const selectedTokens = tokens.filter(t =>
-                !(t.end <= start || t.start >= end)
-            );
-
-            const containsUnderline = selectedTokens.some(t => t.underlined);
-
-            if (containsUnderline) {
-                // Step 4 — conjoin
-
-                let first = selectedTokens[0];
-                let hostIndex = tokens.indexOf(first);
-
-                if (first.underlined && hostIndex > 0) {
-                    hostIndex -= 1;
-                }
-
-                const host = tokens[hostIndex];
-
-                // Combine text
-                let combinedText = '';
-                selectedTokens.forEach(t => combinedText += t.text);
-
-                host.text += combinedText;
-                host.underlined = false;
-
-                // Remove selected tokens except host
-                tokens = tokens.filter(t =>
-                    !selectedTokens.includes(t) || t === host
-                );
-
-            } else {
-                // Step 5 — splitting
-
-                const newTokens = [];
-
-                tokens.forEach(t => {
-
-                    if (t.end <= start || t.start >= end) {
-                        newTokens.push(t);
-                        return;
-                    }
-
-                    const beforeLen = Math.max(0, start - t.start);
-                    const afterLen = Math.max(0, t.end - end);
-
-                    if (beforeLen > 0) {
-                        newTokens.push({
-                            text: t.text.slice(0, beforeLen),
-                            underlined: false
-                        });
-                    }
-
-                    const selectionText = t.text.slice(
-                        Math.max(0, start - t.start),
-                        t.text.length - afterLen
-                    );
-
-                    newTokens.push({
-                        text: selectionText,
-                        underlined: true
-                    });
-
-                    if (afterLen > 0) {
-                        newTokens.push({
-                            text: t.text.slice(t.text.length - afterLen),
-                            underlined: false
-                        });
-                    }
-                });
-
-                tokens = newTokens;
-            }
-
-            renderTokens(tokens);
-            window.getSelection().removeAllRanges();
-        }
-
         function getSelectionOffsets() {
             const sel = window.getSelection();
             if (!sel.rangeCount || sel.isCollapsed) return null;
-
             const range = sel.getRangeAt(0);
             const preRange = range.cloneRange();
             preRange.selectNodeContents(underlineContent.node());
             preRange.setEnd(range.startContainer, range.startOffset);
-
             const start = preRange.toString().length;
-            const end = start + range.toString().length;
-
-            return { start, end };
+            const length = range.toString().length;
+            return {
+                start,
+                end: start + length
+            };
         }
 
         function getTokens() {
             const tokens = [];
-
             underlineContent.node().childNodes.forEach(node => {
                 if (node.nodeType === Node.TEXT_NODE) {
                     tokens.push({
                         text: node.textContent,
                         underlined: false
                     });
-                }
-                else if (node.classList?.contains('blank')) {
+                } else if (node.nodeType === Node.ELEMENT_NODE &&
+                        node.classList.contains('blank')) {
                     tokens.push({
                         text: node.textContent,
                         underlined: true
                     });
                 }
             });
-
             return tokens;
         }
 
         function renderTokens(tokens) {
             underlineContent.html('');
-
             tokens.forEach(token => {
-                if (!token.text.length) return;
-
+                if (!token.text.length) {
+                    console.log('there should not be empty tokens');
+                    return;
+                }
                 if (token.underlined) {
                     const span = document.createElement('span');
                     span.classList.add('blank');
-                    span.style.backgroundColor = generateSoftColor();
+                    span.style.textDecoration = 'underline';
                     span.textContent = token.text;
                     underlineContent.node().appendChild(span);
-                } else {
+                }
+                else {
                     underlineContent.node().appendChild(
                         document.createTextNode(token.text)
                     );
@@ -637,6 +528,245 @@
 
             underlineContent.node().normalize();
         }
+
+        function underlineWithSpace(event) {
+            event.preventDefault();
+            if (event.key !== ' ') return;
+            const offsets = getSelectionOffsets();
+            if (!offsets) return;
+            let { start, end } = offsets;
+            const fullText = underlineContent.node().textContent;
+            // Step 1: trim whitespace
+            while (start < end && /\s/.test(fullText[start])) start++;
+            while (end > start && /\s/.test(fullText[end - 1])) end--;
+            if (start >= end) return;
+            let tokens = getTokens();
+            // Compute absolute ranges for each token
+            let cursor = 0;
+            tokens = tokens.map(t => {
+                const obj = {
+                    ...t,
+                    start: cursor,
+                    end: cursor + tokenTxt.length
+                };
+                cursor += tokenTxt.length;
+                return obj;
+            });
+            // Step 3: find all overlapping tokens
+            const overlapping = tokens.filter(t =>
+                !(t.end <= start || t.start >= end)
+            );
+            const containsUnderline = overlapping.some(t => t.underlined);
+            if (containsUnderline) {
+                // Step 4: merge all overlapping into ONE non-underlined token
+                const firstIndex = tokens.indexOf(overlapping[0]);
+                let hostIndex = firstIndex;
+                if (overlapping[0].underlined && firstIndex > 0) {
+                    hostIndex = firstIndex - 1;
+                }
+                const host = tokens[hostIndex];
+                // Combine text exactly as it exists
+                const mergedText = overlapping.map(t => t.text).join('');
+                host.text += mergedText;
+                host.underlined = false;
+                tokens = tokens.filter(t =>
+                    !overlapping.includes(t) || t === host
+                );
+            }
+            // Step 5: split
+            const newTokens = [];
+            tokens.forEach(t => {
+                if (t.end <= start || t.start >= end) {
+                    newTokens.push({ text: t.text, underlined: t.underlined });
+                    return;
+                }
+                const selStart = Math.max(start, t.start);
+                const selEnd = Math.min(end, t.end);
+                const before = t.text.slice(0, selStart - t.start);
+                const middle = t.text.slice(selStart - t.start, selEnd - t.start);
+                const after = t.text.slice(selEnd - t.start);
+                if (before) {
+                    newTokens.push({ text: before, underlined: false });
+                }
+                newTokens.push({
+                    text: middle,
+                    underlined: true
+                });
+                if (after) {
+                    newTokens.push({ text: after, underlined: false });
+                }
+            });
+            tokens = newTokens;
+            renderTokens(tokens);
+            window.getSelection().removeAllRanges();
+        }
+
+        // function underlineWithSpace(event) {
+        //     event.preventDefault();
+        //     if (event.key !== ' ' || underlineContent.text() === null) return;
+
+        //     const offsets = getSelectionOffsets();
+        //     if (!offsets) return;
+
+        //     let { start, end } = offsets;
+
+        //     // Step 1 — trim whitespace
+        //     const fullText = underlineContent.node().textContent;
+
+        //     while (start < end && /\s/.test(fullText[start])) start++;
+        //     while (end > start && /\s/.test(fullText[end - 1])) end--;
+
+        //     if (start >= end) return;
+
+        //     let tokens = getTokens();
+
+        //     // Convert tokens to absolute character ranges
+        //     let cursor = 0;
+        //     tokens = tokens.map(t => {
+        //         const obj = {
+        //             ...t,
+        //             start: cursor,
+        //             end: cursor + t.text.length
+        //         };
+        //         cursor += t.text.length;
+        //         return obj;
+        //     });
+
+        //     // Step 3 — find all tokens partially selected
+        //     const selectedTokens = tokens.filter(t =>
+        //         !(t.end <= start || t.start >= end)
+        //     );
+
+        //     const containsUnderline = selectedTokens.some(t => t.underlined);
+
+        //     if (containsUnderline) {
+        //         // Step 4 — conjoin
+
+        //         let first = selectedTokens[0];
+        //         let hostIndex = tokens.indexOf(first);
+
+        //         if (first.underlined && hostIndex > 0) {
+        //             hostIndex -= 1;
+        //         }
+
+        //         const host = tokens[hostIndex];
+
+        //         // Combine text
+        //         let combinedText = '';
+        //         selectedTokens.forEach(t => combinedText += t.text);
+
+        //         host.text += combinedText;
+        //         host.underlined = false;
+
+        //         // Remove selected tokens except host
+        //         tokens = tokens.filter(t =>
+        //             !selectedTokens.includes(t) || t === host
+        //         );
+
+        //     } else {
+        //         // Step 5 — splitting
+
+        //         const newTokens = [];
+
+        //         tokens.forEach(t => {
+
+        //             if (t.end <= start || t.start >= end) {
+        //                 newTokens.push(t);
+        //                 return;
+        //             }
+
+        //             const beforeLen = Math.max(0, start - t.start);
+        //             const afterLen = Math.max(0, t.end - end);
+
+        //             if (beforeLen > 0) {
+        //                 newTokens.push({
+        //                     text: t.text.slice(0, beforeLen),
+        //                     underlined: false
+        //                 });
+        //             }
+
+        //             const selectionText = t.text.slice(
+        //                 Math.max(0, start - t.start),
+        //                 t.text.length - afterLen
+        //             );
+
+        //             newTokens.push({
+        //                 text: selectionText,
+        //                 underlined: true
+        //             });
+
+        //             if (afterLen > 0) {
+        //                 newTokens.push({
+        //                     text: t.text.slice(t.text.length - afterLen),
+        //                     underlined: false
+        //                 });
+        //             }
+        //         });
+
+        //         tokens = newTokens;
+        //     }
+
+        //     renderTokens(tokens);
+        //     window.getSelection().removeAllRanges();
+        // }
+
+        // function getSelectionOffsets() {
+        //     const sel = window.getSelection();
+        //     if (!sel.rangeCount || sel.isCollapsed) return null;
+
+        //     const range = sel.getRangeAt(0);
+        //     const preRange = range.cloneRange();
+        //     preRange.selectNodeContents(underlineContent.node());
+        //     preRange.setEnd(range.startContainer, range.startOffset);
+
+        //     const start = preRange.toString().length;
+        //     const end = start + range.toString().length;
+
+        //     return { start, end };
+        // }
+
+        // function getTokens() {
+        //     const tokens = [];
+
+        //     underlineContent.node().childNodes.forEach(node => {
+        //         if (node.nodeType === Node.TEXT_NODE) {
+        //             tokens.push({
+        //                 text: node.textContent,
+        //                 underlined: false
+        //             });
+        //         }
+        //         else if (node.classList?.contains('blank')) {
+        //             tokens.push({
+        //                 text: node.textContent,
+        //                 underlined: true
+        //             });
+        //         }
+        //     });
+
+        //     return tokens;
+        // }
+
+        // function renderTokens(tokens) {
+        //     underlineContent.html('');
+
+        //     tokens.forEach(token => {
+        //         if (!token.text.length) return;
+
+        //         if (token.underlined) {
+        //             const span = document.createElement('span');
+        //             span.classList.add('blank');
+        //             span.style.backgroundColor = generateSoftColor();
+        //             span.textContent = token.text;
+        //             underlineContent.node().appendChild(span);
+        //         } else {
+        //             underlineContent.node().appendChild(
+        //                 document.createTextNode(token.text)
+        //             );
+        //         }
+        //     });
+
+        //     underlineContent.node().normalize();
+        // }
 
         // detect spacebar presses for when creating a prompt on second page
         // function underlineWithSpace(event) {
