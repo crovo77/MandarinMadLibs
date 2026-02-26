@@ -228,7 +228,7 @@
             case 1:
                 sceneTitle.text(passageName);
                 nextBtn.textContent = 'Submit';
-                const rows = disp.select('p')
+                const rows = sceneContent
                     .selectAll('div.blank-row')
                     .data(blanks)
                     .enter()
@@ -239,11 +239,9 @@
                     .style('justify-content', 'space-between')
                     .style('align-items', 'center')
                     .style('max-width', '400px');
-
                 rows.append('label')
                     .text(d => d.type + ' : ')
                     .style('margin-right', '10px');
-
                 rows.append('input')
                     .attr('type', 'text')
                     .property('value', d => d.value)
