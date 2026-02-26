@@ -129,8 +129,8 @@
         </div>
     </div>
     <div id='navigation-container'>
-        <button id='prevBtn' style='visibility: hidden;'>Go Back</button>
-        <button id='nextBtn' style='visibility: hidden;'>Submit</button>
+        <button id='prevBtn'>Go Back</button>
+        <button id='nextBtn'>Submit</button>
     </div>
      
     <script>
@@ -194,8 +194,8 @@
         function setPageToDefault(pageNum) {
             prevBtn.textContent = 'Previous';
             nextBtn.textContent = 'Next';
-            prevBtn.style.display = (pageNum > 0)? 'block': 'none';
-            nextBtn.style.display = 'block';
+            prevBtn.style.display = (pageNum > 0)? 'inline-block': 'none';
+            nextBtn.style.display = 'inline-block';
             disp.selectChildren().style('display', 'none');
             sceneTitle.style('display', 'block');
             sceneContent.style('display', 'block')
