@@ -479,28 +479,76 @@
             if (!selection.rangeCount || selection.isCollapsed) return;
             const range = selection.getRangeAt(0);
 
-            // Check if selection is fully inside one blank
-            const singleBlank = findSingleEnclosingBlank(selection);
+            // Expand selection to fully include any touched blank spans
+            expandRangeToIncludeWholeBlanks(range);
 
+            // If selection exactly equals one blank → toggle off
+            const singleBlank = isExactlyOneBlank(range);
             if (singleBlank) {
                 unwrapBlank(singleBlank);
                 sceneContent.node().normalize();
                 selection.removeAllRanges();
                 return;
             }
-            // Remove ALL blanks that intersect selection
-            removeIntersectingBlanks(range);
-            // Wrap cleaned selection
+            // Remove ALL blanks inside range completely
+            removeAllBlanksInRange(range);
+            // Wrap cleaned text as one new blank
             wrapSelectionAsBlank(range);
             sceneContent.node().normalize();
             selection.removeAllRanges();
-        };
+        }
         function findSingleEnclosingBlank(selection) {
             const startBlank = findBlankAncestor(selection.anchorNode);
             const endBlank   = findBlankAncestor(selection.focusNode);
 
             if (startBlank && startBlank === endBlank) {
                 return startBlank;
+            }
+            return null;
+        }
+        function expandRangeToIncludeWholeBlanks(range) {
+            const blanks = sceneContent.node().querySelectorAll('.blank');
+            blanks.forEach(blank => {
+                const blankRange = document.createRange();
+                blankRange.selectNode(blank);
+                // If range intersects blank at all
+                if (
+                    range.compareBoundaryPoints(Range.END_TO_START, blankRange) < 0 &&
+                    range.compareBoundaryPoints(Range.START_TO_END, blankRange) > 0
+                ) {
+                    // Expand selection outward
+                    if (range.compareBoundaryPoints(Range.START_TO_START, blankRange) > 0) {
+                        range.setStartBefore(blank);
+                    }
+                    if (range.compareBoundaryPoints(Range.END_TO_END, blankRange) < 0) {
+                        range.setEndAfter(blank);
+                    }
+                }
+            });
+        }
+        function removeAllBlanksInRange(range) {
+            const blanks = sceneContent.node().querySelectorAll('.blank');
+            blanks.forEach(blank => {
+                const blankRange = document.createRange();
+                blankRange.selectNode(blank);
+                if (
+                    range.compareBoundaryPoints(Range.END_TO_START, blankRange) < 0 &&
+                    range.compareBoundaryPoints(Range.START_TO_END, blankRange) > 0
+                ) {
+                    unwrapBlank(blank);
+                }
+            });
+        }
+        function isExactlyOneBlank(range) {
+            const startBlank = findBlankAncestor(range.startContainer);
+            const endBlank = findBlankAncestor(range.endContainer);
+            if (startBlank && startBlank === endBlank) {
+                const blankRange = document.createRange();
+                blankRange.selectNode(startBlank);
+                return (
+                    range.compareBoundaryPoints(Range.START_TO_START, blankRange) === 0 &&
+                    range.compareBoundaryPoints(Range.END_TO_END, blankRange) === 0
+                ) ? startBlank : null;
             }
             return null;
         }
@@ -513,19 +561,6 @@
             }
             return null;
         }
-        function removeIntersectingBlanks(range) {
-            const blanks = sceneContent.node().querySelectorAll('.blank');
-            blanks.forEach(blank => {
-                const blankRange = document.createRange();
-                blankRange.selectNodeContents(blank);
-                if (
-                    range.compareBoundaryPoints(Range.END_TO_START, blankRange) < 0 &&
-                    range.compareBoundaryPoints(Range.START_TO_END, blankRange) > 0
-                ) {
-                    unwrapBlank(blank);
-                }
-            });
-        }   
         function wrapSelectionAsBlank(range) {
             const extracted = range.extractContents();
             const span = document.createElement('span');
