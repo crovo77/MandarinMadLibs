@@ -335,7 +335,8 @@
                     node.nodeType === Node.ELEMENT_NODE &&
                     node.classList.contains('blank')
                 ) {
-                    excerpts.push(new Excerpt('', node.textContent));
+                    const text = node.textContent.trim();
+                    if (text.length > 0) excerpts.push(new Excerpt('', node.textContent));
                 }
             });
             return excerpts;
@@ -545,12 +546,13 @@
             // Step 2: wrap current selection in a new underline span
             const newRange = window.getSelection().getRangeAt(0);
             const extracted = newRange.extractContents();
+            if (!extracted.textContent.trim()) return;
             const span = document.createElement('span');
             span.classList.add('blank');
             span.appendChild(extracted);
             newRange.insertNode(span);
-
             selection.removeAllRanges();
+            underlineContent.node().normalize();
         }
     </script>
 </body>
