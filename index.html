@@ -107,6 +107,9 @@
             padding: 0 2px;
             font-size: 26px;
         }
+        #underlineContent {
+            font-size: 26px;
+        }
 
     </style>
 </head>
@@ -267,7 +270,6 @@
                 .text(d => d.value)
                 .style('color', d => (d.type === 'readOnly')? 'black' : 'red');
                 break;
-
             // these pages are when we are creating a prompt
             case 3:
                 sceneTitle.text('Create a Prompt!\nFirst write a story:');
@@ -356,6 +358,7 @@
                     return;
                 }
                 creatingPrompt = !creatingPrompt;
+                createPromptButton.textContent = creatingPrompt? 'Play Prompts' : 'Create Prompt';
                 clearPassage();
                 await setPage(0);
             });
