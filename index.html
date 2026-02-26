@@ -152,6 +152,8 @@
         const sceneTitle = d3.select('#sceneTitle');
         const sceneContent = d3.select('#sceneContent');
         const underlineContent = d3.select('#underlineContent')
+                                .attr('contenteditable', 'false')
+                                .attr('tabindex', '0')
                                 .attr('draggable', 'false')
                                 .on('dragstart', e => e.preventDefault())
                                 .on('dragover', e => e.preventDefault())
@@ -277,22 +279,14 @@
             case 4:
                 sceneTitle.text('Select text, then press <Spacebar> to convert to a blank.');
                 sceneContent.style('display', 'none');
-                underlineContent.style('display', 'block').attr('contenteditable', 'true')
-                    .on('beforeinput', function(event) {
-                        // Allow only selection (no actual text mutation)
-                        if (event.inputType.startsWith('insert') ||
-                            event.inputType.startsWith('delete') ||
-                            event.inputType === 'insertFromPaste' ||
-                            event.inputType === 'insertCompositionText') {
-                            event.preventDefault();
-                        }
-                    });
+                underlineContent.style('display', 'block');
                 let storyInput = storyInputArea.property('value');
                 if (storyInput !== underlineContent.text()) underlineContent.text(storyInput);
+                underlineContent.node().focus();
                 break;
             case 5:
                 sceneTitle.text('Finally, add a title and rename blanks to become prompts.');
-                underlineContent.style('display', 'block').attr('contenteditable', 'false');
+                underlineContent.style('display', 'block');
                 let excerpts = createdPassageToExcerpts(underlineContent.node());
                 if (excerpts.length <= 1) { // a single excerpt indicates no blanks
                     alert('Please form some blanks in order to continue.');
