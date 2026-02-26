@@ -499,133 +499,58 @@
             };
         }
 
-        function getTokens() {
+        function getSelectedTokens(range, container) {
             const tokens = [];
-            underlineContent.node().childNodes.forEach(node => {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    tokens.push({
-                        text: node.textContent,
-                        underlined: false
-                    });
-                } else if (node.nodeType === Node.ELEMENT_NODE &&
-                        node.classList.contains('blank')) {
-                    tokens.push({
-                        text: node.textContent,
-                        underlined: true
-                    });
+            container.childNodes.forEach(node => {
+                if (node.nodeType !== Node.ELEMENT_NODE) return;
+                if (node.classList.contains('blank')) {
+                    const nodeRange = document.createRange();
+                    nodeRange.selectNodeContents(node);
+                    // Only include tokens that intersect the selection range
+                    if (range.compareBoundaryPoints(Range.END_TO_START, nodeRange) > 0 ||
+                        range.compareBoundaryPoints(Range.START_TO_END, nodeRange) < 0) {
+                        // No intersection
+                        return;
+                    }
+                    tokens.push(node);
                 }
             });
             return tokens;
         }
 
-        function renderTokens(tokens) {
-            underlineContent.html('');
+        function unwrapSelectedTokens(tokens) {
             tokens.forEach(token => {
-                if (!token.text.length) return;
-                if (token.underlined) {
-                    const span = document.createElement('span');
-                    span.classList.add('blank');
-                    span.style.textDecoration = 'underline';
-                    span.textContent = token.text;
-                    underlineContent.node().appendChild(span);
-                }
-                else {
-                    underlineContent.node().appendChild(
-                        document.createTextNode(token.text)
-                    );
-                }
+                const parent = token.parentNode;
+                while (token.firstChild) parent.insertBefore(token.firstChild, token);
+                parent.removeChild(token);
             });
-            underlineContent.node().normalize();
         }
 
         function underlineWithSpace(event) {
             event.preventDefault();
             if (event.key !== ' ' && !event.isComposing && event.keyCode !== 229) return;
-            const offsets = getSelectionOffsets();
-            if (!offsets) return;
-            let { start, end } = offsets;
-            const fullText = underlineContent.node().textContent;
-            // Step 1: trim whitespace
-            while (start < end && /\s/.test(fullText[start])) start++;
-            while (end > start && /\s/.test(fullText[end - 1])) end--;
-            if (start >= end) return;
-            let tokens = getTokens();
-            // Compute absolute ranges for each token
-            let cursor = 0;
-            tokens = tokens.map(t => {
-                const obj = {
-                    ...t,
-                    start: cursor,
-                    end: cursor + t.text.length
-                };
-                cursor += t.text.length;
-                return obj;
-            });
-            // Step 3: find all overlapping tokens
-            const overlapping = tokens.filter(t =>
-                !(t.end <= start || t.start >= end)
-            );
-            const containsUnderline = overlapping.some(t => t.underlined);
-            if (containsUnderline) {
-                const newTokens = [];
-                let mergedText = '';
-                let merging = false;
-                tokens.forEach(t => {
-                    const overlaps = !(t.end <= start || t.start >= end);
-                    if (overlaps) {
-                        mergedText += t.text;
-                        merging = true;
-                        return;
-                    }
-                    if (merging) {
-                        // Insert ONE clean non-underlined token
-                        newTokens.push({
-                            text: mergedText,
-                            underlined: false
-                        });
-                        mergedText = '';
-                        merging = false;
-                    }
-                    newTokens.push({
-                        text: t.text,
-                        underlined: t.underlined
-                    });
-                });
-                // If selection ended at last token
-                if (merging) {
-                    newTokens.push({
-                        text: mergedText,
-                        underlined: false
-                    });
-                }
-                tokens = newTokens;
-            }
-            // Step 5: split
-            const newTokens = [];
-            tokens.forEach(t => {
-                if (t.end <= start || t.start >= end) {
-                    newTokens.push({ text: t.text, underlined: t.underlined });
-                    return;
-                }
-                const selStart = Math.max(start, t.start);
-                const selEnd = Math.min(end, t.end);
-                const before = t.text.slice(0, selStart - t.start);
-                const middle = t.text.slice(selStart - t.start, selEnd - t.start);
-                const after = t.text.slice(selEnd - t.start);
-                if (before) {
-                    newTokens.push({ text: before, underlined: false });
-                }
-                newTokens.push({
-                    text: middle,
-                    underlined: true
-                });
-                if (after) {
-                    newTokens.push({ text: after, underlined: false });
-                }
-            });
-            tokens = newTokens;
-            renderTokens(tokens);
-            window.getSelection().removeAllRanges();
+
+            const selection = window.getSelection();
+            if (!selection.rangeCount || selection.isCollapsed) return;
+            const range = selection.getRangeAt(0);
+
+            // Trim whitespace from selection
+            const text = range.toString().trim();
+            if (!text) return;
+
+            // Step 1: unwrap underlines in selection
+            const tokensToUnwrap = getSelectedTokens(range, underlineContent.node());
+            unwrapSelectedTokens(tokensToUnwrap);
+
+            // Step 2: wrap current selection in a new underline span
+            const newRange = window.getSelection().getRangeAt(0);
+            const extracted = newRange.extractContents();
+            const span = document.createElement('span');
+            span.classList.add('blank');
+            span.appendChild(extracted);
+            newRange.insertNode(span);
+
+            selection.removeAllRanges();
         }
     </script>
 </body>
