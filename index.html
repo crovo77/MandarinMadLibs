@@ -103,7 +103,7 @@
         }
         .blank {
             text-decoration: underline;
-            background-color: rgba(255,0,0,0.1);
+            padding: 0 2px;
         }
 
     </style>
@@ -150,9 +150,6 @@
         const storyInputArea = d3.select('#storyInputArea');
         const side_cont = d3.select('#side-container');
         const user_ans = d3.select('#user-answers');
-        
-        let creatingPrompt = false;
-
         const promptFormat = '.csv';
         const promptFolder = 'https://api.github.com/repos/crovo77/MandarinMadLibs/contents/prompts';
         async function fetchPromptNames() {
@@ -175,49 +172,7 @@
             }
         }
 
-        // detect spacebar presses for when creating a prompt on second page
-        function underlineWithSpace(event) {
-            event.preventDefault();
-            if (event.key !== ' ' || sceneContent.text() === null) return;
-            const selection = window.getSelection();
-            if (!selection.rangeCount || selection.isCollapsed) return;
-            const range = selection.getRangeAt(0);
-
-            // If selection is entirely inside a blank remove it
-            const blankAncestor = findBlankAncestor(selection.anchorNode);
-
-            if (blankAncestor) unwrapBlank(blankAncestor);
-            else wrapSelectionAsBlank(range);
-
-            sceneContent.node().normalize();
-            selection.removeAllRanges();
-        };
-        function findBlankAncestor(node) {
-            while (node && node.id !== 'sceneContent') {
-                if (node.nodeType === 1 && node.classList.contains('blank')) {
-                    return node;
-                }
-                node = node.parentNode;
-            }
-            return null;
-        }
-        function wrapSelectionAsBlank(range) {
-            const extracted = range.extractContents();
-            const span = document.createElement('span');
-            span.classList.add('blank');
-            span.dataset.blank = extracted.textContent;
-            span.appendChild(extracted);
-            range.insertNode(span);
-        }
-        function unwrapBlank(blankNode) {
-            const parent = blankNode.parentNode;
-            while (blankNode.firstChild) {
-                parent.insertBefore(blankNode.firstChild, blankNode);
-            }
-            parent.removeChild(blankNode);
-        }
-
-        let passage = null;
+        let passage = null; // an array of Excerpt objects
         let passageName = null;
         let blanks = null;
         function clearPassage() {
@@ -377,6 +332,8 @@
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
         const createPromptButton = document.getElementById('createPromptButton');
+
+        let creatingPrompt = false;
         async function init() {
             prevBtn.addEventListener('click', async function prevPage() {
                 await setPage(Math.max(currPage - 1, 0));
@@ -512,6 +469,77 @@
         function mapGet(mp, key, def) {
             if (!mp.has(key)) mp.set(key, def);
             return mp.get(key);
+        }
+
+        // detect spacebar presses for when creating a prompt on second page
+        function underlineWithSpace(event) {
+            event.preventDefault();
+            if (event.key !== ' ' || sceneContent.text() === null) return;
+            const selection = window.getSelection();
+            if (!selection.rangeCount || selection.isCollapsed) return;
+            const range = selection.getRangeAt(0);
+
+            // Check if selection is fully inside one blank
+            const singleBlank = findSingleEnclosingBlank(selection);
+
+            if (singleBlank) {
+                unwrapBlank(singleBlank);
+                sceneContent.node().normalize();
+                selection.removeAllRanges();
+                return;
+            }
+            // Remove ALL blanks that intersect selection
+            removeIntersectingBlanks(range);
+            // Wrap cleaned selection
+            wrapSelectionAsBlank(range);
+            sceneContent.node().normalize();
+            selection.removeAllRanges();
+        };
+        function findSingleEnclosingBlank(selection) {
+            const startBlank = findBlankAncestor(selection.anchorNode);
+            const endBlank   = findBlankAncestor(selection.focusNode);
+
+            if (startBlank && startBlank === endBlank) {
+                return startBlank;
+            }
+            return null;
+        }
+        function findBlankAncestor(node) {
+            while (node && node.id !== 'sceneContent') {
+                if (node.nodeType === 1 && node.classList.contains('blank')) {
+                    return node;
+                }
+                node = node.parentNode;
+            }
+            return null;
+        }
+        function removeIntersectingBlanks(range) {
+            const blanks = sceneContent.node().querySelectorAll('.blank');
+            blanks.forEach(blank => {
+                const blankRange = document.createRange();
+                blankRange.selectNodeContents(blank);
+                if (
+                    range.compareBoundaryPoints(Range.END_TO_START, blankRange) < 0 &&
+                    range.compareBoundaryPoints(Range.START_TO_END, blankRange) > 0
+                ) {
+                    unwrapBlank(blank);
+                }
+            });
+        }   
+        function wrapSelectionAsBlank(range) {
+            const extracted = range.extractContents();
+            const span = document.createElement('span');
+            span.classList.add('blank');
+            // span.dataset.blank = extracted.textContent;
+            span.appendChild(extracted);
+            range.insertNode(span);
+        }
+        function unwrapBlank(blankNode) {
+            const parent = blankNode.parentNode;
+            while (blankNode.firstChild) {
+                parent.insertBefore(blankNode.firstChild, blankNode);
+            }
+            parent.removeChild(blankNode);
         }
     </script>
 </body>
