@@ -558,20 +558,38 @@
             );
             const containsUnderline = overlapping.some(t => t.underlined);
             if (containsUnderline) {
-                // Step 4: merge all overlapping into ONE non-underlined token
-                const firstIndex = tokens.indexOf(overlapping[0]);
-                let hostIndex = firstIndex;
-                if (overlapping[0].underlined && firstIndex > 0) {
-                    hostIndex = firstIndex - 1;
+                const newTokens = [];
+                let mergedText = '';
+                let merging = false;
+                tokens.forEach(t => {
+                    const overlaps = !(t.end <= start || t.start >= end);
+                    if (overlaps) {
+                        mergedText += t.text;
+                        merging = true;
+                        return;
+                    }
+                    if (merging) {
+                        // Insert ONE clean non-underlined token
+                        newTokens.push({
+                            text: mergedText,
+                            underlined: false
+                        });
+                        mergedText = '';
+                        merging = false;
+                    }
+                    newTokens.push({
+                        text: t.text,
+                        underlined: t.underlined
+                    });
+                });
+                // If selection ended at last token
+                if (merging) {
+                    newTokens.push({
+                        text: mergedText,
+                        underlined: false
+                    });
                 }
-                const host = tokens[hostIndex];
-                // Combine text exactly as it exists
-                const mergedText = overlapping.map(t => t.text).join('');
-                host.text += mergedText;
-                host.underlined = false;
-                tokens = tokens.filter(t =>
-                    !overlapping.includes(t) || t === host
-                );
+                tokens = newTokens;
             }
             // Step 5: split
             const newTokens = [];
