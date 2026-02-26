@@ -172,15 +172,36 @@
         // detect spacebar presses for when creating a prompt on second page
         function underlineWithSpace(event) {
             event.preventDefault();
-            if (event.key === ' ' && sceneContent.text() !== null) {
-                const selection = window.getSelection();
-                if (!selection.rangeCount || selection.isCollapsed) return;
-                const range = selection.getRangeAt(0);
-                const spn = document.createElement('u'); // Underline element
-                range.surroundContents(spn);
-                selection.removeAllRanges();
+            if (event.key !== ' ' || sceneContent.text() === null) return;
+            const selection = window.getSelection();
+            if (!selection.rangeCount || selection.isCollapsed) return;
+            const range = selection.getRangeAt(0);
+
+            const parentU = findParentUnderline(range.startContainer);
+            if (parentU) {
+                const parent = parentU.parentNode;
+                while (parentU.firstChild) parent.insertBefore(parentU.firstChild, parentU);
+                parent.removeChild(parentU);
+            } else try { // try to add underline if no underline part of selection
+                const underline = document.createElement('u');
+                range.surroundContents(underline);
+            } catch (err) { // if underline is part of selection
+                const extracted = range.extractContents();
+                const underline = document.createElement('u');
+                underline.appendChild(extracted);
+                range.insertNode(underline);
             }
+            selection.removeAllRanges();
+            sceneContent.node().normalize();
         };
+
+        function findParentUnderline(node) {
+            while (node && node.id !== 'sceneContent') {
+                if (node.nodeName === 'U') return node;
+                node = node.parentNode;
+            }
+            return null;
+        }
 
         let passage = null;
         let passageName = null;
