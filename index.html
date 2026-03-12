@@ -419,7 +419,7 @@
             for (let i = 1; i < exArr.length; i++) {
                 csv += (exArr[i - 1].type !== 'readOnly')? '\n' : ',';
                 if (exArr[i].type !== 'readOnly') {
-                    csv += exArr[i].type.replaceAll(',', ' ');
+                    csv += exArr[i].value.replaceAll(',', ' ');
                 } else {
                     let posRep = exArr[i].value.replaceAll(',', ',,');
                     if (posRep[0] === ',') posRep = posRep.slice(1);
